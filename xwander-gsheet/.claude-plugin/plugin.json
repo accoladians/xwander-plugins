@@ -1,0 +1,43 @@
+{
+  "name": "xwander-gsheet",
+  "version": "2.0.0",
+  "description": "AI-first Google Sheets abstraction with section-based management. Eliminates hardcoded cell ranges with local-first JSON state + sync.",
+  "author": "xwander-ai",
+  "license": "MIT",
+
+  "skills": [
+    {
+      "name": "gsheet-ops",
+      "file": "skills/gsheet-ops.md",
+      "description": "Google Sheets section-based operations"
+    }
+  ],
+
+  "agents": [
+    {
+      "name": "gsheet-agent",
+      "description": "Google Sheets specialist for purchase orders and data tables",
+      "model": "sonnet",
+      "skills": ["gsheet-ops"]
+    }
+  ],
+
+  "commands": [],
+
+  "hooks": [],
+
+  "tools": ["Bash", "Read", "Write", "Edit"],
+
+  "dependencies": {
+    "python": ["gspread", "google-auth"],
+    "mcp": []
+  },
+
+  "configuration": {
+    "service_account": "/srv/xwander-platform/projects/alone/service_account.json",
+    "shared_drive_id": "0AOx6w8RvMATMUk9PVA",
+    "lib_path": "/srv/erasoppi-platform/erasoppi.fi/growth/purchasing/lib"
+  },
+
+  "tags": ["google-sheets", "spreadsheet", "purchase-orders", "ai-first", "section-based"]
+}

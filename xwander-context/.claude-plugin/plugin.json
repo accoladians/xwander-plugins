@@ -1,0 +1,55 @@
+{
+  "name": "xwander-context",
+  "version": "1.0.0",
+  "description": "Session management for Claude Code: handoffs, checkpoints, context externalization, token optimization",
+  "author": {
+    "name": "xwander-dev",
+    "url": "https://github.com/accoladians"
+  },
+  "skills": [
+    {
+      "name": "session-handoff",
+      "description": "Prepare context for session continuation or handoff. Use before ending sessions or when approaching compaction.",
+      "file": "skills/session-handoff.md"
+    },
+    {
+      "name": "checkpoint-optimizer",
+      "description": "Suggest conversation rewinds after completing work to reclaim context tokens while preserving code.",
+      "file": "skills/checkpoint-optimizer.md"
+    },
+    {
+      "name": "context-externalization",
+      "description": "Save important context to RAG before compaction. Use for decisions, learnings, and discoveries.",
+      "file": "skills/context-externalization.md"
+    },
+    {
+      "name": "token-budget",
+      "description": "Monitor and optimize token usage. Use when context feels heavy or approaching limits.",
+      "file": "skills/token-budget.md"
+    }
+  ],
+  "hooks": [
+    {
+      "name": "pre-compact-extract",
+      "event": "PreCompact",
+      "file": "hooks/pre-compact-extract.sh",
+      "description": "Extract session context before compaction"
+    },
+    {
+      "name": "session-start-context",
+      "event": "SessionStart",
+      "file": "hooks/session-start-context.sh",
+      "description": "Restore context at session start"
+    }
+  ],
+  "dependencies": {
+    "tools": ["Bash", "Write", "mcp__rag-mcp__write_knowledge", "mcp__rag-mcp__search_knowledge"],
+    "external": ["rag-cli"]
+  },
+  "configuration": {
+    "summary_dir": "/mnt/xwander-ai/knowledge/session-summaries",
+    "max_context_tokens": 200000,
+    "checkpoint_threshold": 150000
+  },
+  "tags": ["context", "session", "token-optimization", "handoff"]
+}

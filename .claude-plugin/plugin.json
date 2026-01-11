@@ -1,0 +1,35 @@
+{
+  "name": "xwander-marketplace",
+  "version": "2.0.0",
+  "description": "xwander Claude Code plugin marketplace - native tools for AI development across servers",
+  "author": {
+    "name": "xwander-dev",
+    "url": "https://github.com/accoladians"
+  },
+  "homepage": "https://github.com/accoladians/xwander-plugins",
+  "repository": "https://github.com/accoladians/xwander-plugins",
+  "plugins": [
+    {
+      "name": "xwander-context",
+      "description": "Session management: handoffs, checkpoints, context externalization with real hooks",
+      "source": "./xwander-context",
+      "version": "1.0.0"
+    },
+    {
+      "name": "xwander-gsheet",
+      "description": "AI-first Google Sheets: section-based abstraction, local-first JSON state, eliminates hardcoded cell ranges",
+      "source": "./xwander-gsheet",
+      "version": "2.0.0"
+    }
+  ],
+  "categories": [
+    "ai-tools",
+    "productivity",
+    "google-apis"
+  ],
+  "compatibility": {
+    "claude-code": ">=1.0.0"
+  },
+  "install": "/plugin marketplace add accoladians/xwander-plugins && /plugin install {plugin-name}@xwander-marketplace",
+  "license": "MIT"
+}
