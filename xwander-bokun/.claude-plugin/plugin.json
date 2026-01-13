@@ -1,0 +1,68 @@
+{
+  "name": "xwander-bokun",
+  "version": "1.0.0",
+  "description": "AI-first Bokun booking platform integration - bookings, experiences, products, availability",
+  "author": {
+    "name": "xwander-dev",
+    "url": "https://github.com/accoladians"
+  },
+  "homepage": "https://github.com/accoladians/xwander-plugins",
+  "repository": "https://github.com/accoladians/xwander-plugins",
+
+  "skills": [
+    {
+      "name": "booking-lookup",
+      "description": "Look up Bokun bookings by confirmation code, date, or customer",
+      "file": "skills/booking-lookup.md"
+    },
+    {
+      "name": "experience-ops",
+      "description": "Create, update, and manage Bokun experiences/products",
+      "file": "skills/experience-ops.md"
+    },
+    {
+      "name": "availability-check",
+      "description": "Check tour availability for dates",
+      "file": "skills/availability-check.md"
+    },
+    {
+      "name": "product-catalog",
+      "description": "Search and browse Bokun product catalog",
+      "file": "skills/product-catalog.md"
+    }
+  ],
+
+  "agents": [
+    {
+      "name": "bokun-agent",
+      "description": "Bokun booking platform specialist - bookings, products, availability",
+      "model": "sonnet",
+      "skills": ["booking-lookup", "experience-ops", "availability-check", "product-catalog"]
+    }
+  ],
+
+  "commands": [
+    {
+      "name": "bokun",
+      "description": "Bokun CLI operations",
+      "file": "commands/bokun.md"
+    }
+  ],
+
+  "hooks": [],
+
+  "tools": ["Bash", "Read", "Write", "Edit"],
+
+  "dependencies": {
+    "python": ["httpx", "click", "python-dotenv"],
+    "mcp": []
+  },
+
+  "configuration": {
+    "credentials": "doppler",
+    "env_vars": ["BOKUN_API_KEY", "BOKUN_API_SECRET", "BOKUN_VENDOR_ID"]
+  },
+
+  "categories": ["booking", "tourism", "api"],
+  "tags": ["bokun", "booking", "tours", "experiences", "availability"]
+}
