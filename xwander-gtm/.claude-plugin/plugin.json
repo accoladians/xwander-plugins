@@ -1,0 +1,17 @@
+{
+  "name": "xwander-gtm",
+  "version": "1.0.1",
+  "description": "Google Tag Manager API - Workspace management, publishing, Enhanced Conversions",
+  "author": {
+    "name": "Xwander Growth Team",
+    "email": "joni@accolade.fi"
+  },
+  "homepage": "https://github.com/accoladians/xwander-plugins",
+  "repository": "https://github.com/accoladians/xwander-plugins",
+  "license": "Proprietary",
+  "keywords": ["gtm", "tag-manager", "analytics", "enhanced-conversions", "google-marketing-platform"],
+  "commands": "./commands/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json"
+}

@@ -1,0 +1,194 @@
+{
+  "_description": "Quick reference for xwander-gtm plugin",
+  "_updated": "2026-01-10",
+
+  "common_commands": {
+    "list_conversion_tags": {
+      "command": "xw gtm list-conversion-tags",
+      "description": "List all Google Ads conversion tags with EC status",
+      "output": "Table showing tag ID, name, conversion ID, EC status, and paused state"
+    },
+    "enable_ec": {
+      "command": "xw gtm enable-ec --tag-id 7 --variable-name 'User-Provided Data'",
+      "description": "Enable Enhanced Conversions on a conversion tag",
+      "note": "Requires User-Provided Data variable to exist first"
+    },
+    "create_ec_variable": {
+      "command": "xw gtm create-ec-variable --name 'EC - User Data'",
+      "description": "Create Enhanced Conversions User-Provided Data variable",
+      "modes": ["AUTO (auto-detect)", "MANUAL (--manual flag for dataLayer mapping)"]
+    },
+    "publish_latest": {
+      "command": "xw gtm publish --latest",
+      "description": "Publish the latest container version to LIVE",
+      "warning": "Use with caution - publishes immediately to production"
+    },
+    "create_version": {
+      "command": "xw gtm create-version --name 'v40 - Description' --notes 'Details'",
+      "description": "Create a new container version (auto-syncs workspace)",
+      "note": "Version is created but NOT published"
+    }
+  },
+
+  "workflow_examples": {
+    "enable_ec_all_tags": {
+      "description": "Enable Enhanced Conversions on all conversion tags",
+      "steps": [
+        "1. Create User-Provided Data variable: xw gtm create-ec-variable",
+        "2. List conversion tags to get IDs: xw gtm list-conversion-tags",
+        "3. Enable EC on each tag: xw gtm enable-ec --tag-id <ID>",
+        "4. Create version: xw gtm create-version --name 'EC Enabled'",
+        "5. Publish: xw gtm publish --latest"
+      ]
+    },
+    "import_bokun_ecommerce": {
+      "description": "Import Bokun GA4 ecommerce tracking (replicate gtm_bokun_import.py)",
+      "steps": [
+        "1. Create folder (manual or via API)",
+        "2. Create 14 data layer variables for ecommerce fields",
+        "3. Create custom event trigger for ecommerce events",
+        "4. Create GA4 Event tag",
+        "5. Create version and publish"
+      ],
+      "note": "Complex operation - consider creating dedicated skill or high-level function"
+    },
+    "cross_domain_linking": {
+      "description": "Add cross-domain linker to GA4 Configuration tag",
+      "steps": [
+        "1. Get GA4 Config tag: xw gtm get-tag --tag-id 32",
+        "2. Update tag with linker parameter (via Python API or manual)",
+        "3. Create version: xw gtm create-version --name 'Add GA4 linker'",
+        "4. Publish: xw gtm publish --latest"
+      ],
+      "note": "Tag update with nested parameters - use Python API for complex updates"
+    }
+  },
+
+  "python_api_examples": {
+    "list_conversion_tags": {
+      "code": "from xwander_gtm import GTMClient, TagManager\nclient = GTMClient()\ntag_mgr = TagManager(client)\ntags = tag_mgr.list_conversion_tags('6215694602', '176670340')\nfor tag in tags:\n    print(f\"{tag['name']}: EC={tag['ecEnabled']}\")"
+    },
+    "enable_ec_batch": {
+      "code": "from xwander_gtm import GTMClient, TagManager\nclient = GTMClient()\ntag_mgr = TagManager(client)\ntag_ids = ['7', '9', '11', '20', '21', '28']\nfor tag_id in tag_ids:\n    tag_mgr.enable_enhanced_conversions(\n        '6215694602', '176670340', tag_id, 'User-Provided Data'\n    )"
+    },
+    "create_and_publish": {
+      "code": "from xwander_gtm import GTMClient, WorkspaceManager, Publisher\nclient = GTMClient()\nworkspace_mgr = WorkspaceManager(client)\npublisher = Publisher(client)\n\n# Create version\nversion = workspace_mgr.create_version(\n    '6215694602', '176670340',\n    version_name='Automated update',\n    notes='Via xwander-gtm plugin'\n)\n\n# Publish\npublisher.publish(\n    '6215694602', '176670340',\n    version['containerVersionId']\n)"
+    }
+  },
+
+  "default_values": {
+    "account_id": "6215694602",
+    "container_id": "176670340",
+    "measurement_id": "G-DNVXLX0ZE4",
+    "source": "/srv/xwander-platform/xwander.com/growth/knowledge/gtm.json"
+  },
+
+  "credentials": {
+    "location": "~/.gtm-credentials.yaml",
+    "required_scopes": [
+      "tagmanager.readonly",
+      "tagmanager.edit.containers",
+      "tagmanager.edit.containerversions",
+      "tagmanager.publish"
+    ],
+    "setup": "See /srv/xwander-platform/xwander.com/growth/docs/GTM-OAUTH-SCOPES-SUMMARY.md"
+  },
+
+  "error_handling": {
+    "authentication_error": {
+      "exit_code": 3,
+      "causes": ["Missing credentials file", "Invalid credentials", "Expired refresh token"],
+      "fix": "Re-authenticate with gtm_oauth_setup.py"
+    },
+    "workspace_conflict": {
+      "exit_code": 4,
+      "causes": ["Workspace has unresolved conflicts"],
+      "fix": "Run 'xw gtm sync-workspace' to resolve conflicts"
+    },
+    "publishing_error": {
+      "exit_code": 5,
+      "causes": ["Version not found", "No permission to publish", "Invalid version"],
+      "fix": "Verify version exists and credentials have tagmanager.publish scope"
+    },
+    "rate_limit": {
+      "exit_code": 2,
+      "causes": ["API rate limit exceeded (100 req/100s, 1500 req/day)"],
+      "fix": "Wait and retry, or batch operations"
+    }
+  },
+
+  "migration_from_toolkit": {
+    "gtm_updater.py": {
+      "list": "xw gtm list-conversion-tags",
+      "enable-ec": "xw gtm enable-ec --tag-id <ID>",
+      "create-ec-variable": "xw gtm create-ec-variable",
+      "list-variables": "xw gtm list-variables"
+    },
+    "gtm_publish_version.py": {
+      "publish": "xw gtm publish --version-id <ID>",
+      "publish_latest": "xw gtm publish --latest"
+    },
+    "gtm_bokun_import.py": {
+      "note": "No direct CLI equivalent - use Python API or create skill",
+      "python": "from xwander_gtm import *"
+    },
+    "gtm_add_ga4_linker.py": {
+      "note": "Tag update with nested parameters - use Python API",
+      "python": "tag_mgr.update_tag(account_id, container_id, tag_id, updates)"
+    }
+  },
+
+  "cli_flags": {
+    "global": {
+      "--account-id": "GTM account ID (default: 6215694602)",
+      "--container-id": "GTM container ID (default: 176670340)",
+      "--json": "Output as JSON (most commands)"
+    },
+    "tag_specific": {
+      "--type": "Filter tags by type (e.g., awct, gaawe)",
+      "--tag-id": "Specific tag ID",
+      "--variable-name": "User Data variable name (for EC)"
+    },
+    "variable_specific": {
+      "--name": "Variable name",
+      "--datalayer-name": "DataLayer variable name",
+      "--default": "Default value",
+      "--manual": "Use manual dataLayer mapping (EC variables)"
+    },
+    "version_specific": {
+      "--version-id": "Version ID to publish",
+      "--latest": "Use latest version",
+      "--notes": "Version notes"
+    }
+  },
+
+  "common_pitfalls": {
+    "forgot_sync": {
+      "issue": "Version created but not persisted",
+      "cause": "Workspace not synced before create_version",
+      "solution": "Use WorkspaceManager.create_version() which auto-syncs (default: auto_sync=True)"
+    },
+    "duplicate_resource": {
+      "issue": "DuplicateResourceError when creating",
+      "cause": "Resource with same name already exists",
+      "solution": "Use different name or update existing resource"
+    },
+    "missing_fingerprint": {
+      "issue": "Update fails with fingerprint error",
+      "cause": "Fingerprint required for GTM API updates",
+      "solution": "Get resource first to obtain fingerprint, then update"
+    },
+    "rate_limit": {
+      "issue": "RateLimitError (exit code 2)",
+      "cause": "Exceeded API limits (100 req/100s)",
+      "solution": "Batch operations or add delays between requests"
+    }
+  },
+
+  "related_documentation": {
+    "gtm_json": "/srv/xwander-platform/xwander.com/growth/knowledge/gtm.json",
+    "oauth_setup": "/srv/xwander-platform/xwander.com/growth/docs/GTM-OAUTH-SCOPES-SUMMARY.md",
+    "ui_guide": "/srv/xwander-platform/xwander.com/growth/docs/GTM-HUBSPOT-UI-GUIDE-2025.md",
+    "api_reference": "/srv/plugins/xwander-gtm/docs/API.md"
+  }
+}

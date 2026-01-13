@@ -1,0 +1,88 @@
+{
+  "PreToolUse": [
+    {
+      "name": "gtm-publish-warning",
+      "description": "Warn before publishing GTM changes to production",
+      "hooks": [
+        {
+          "type": "warn",
+          "message": "⚠️ GTM publish detected. Container: 176670340 (xwander.com). Confirm version is tested in GTM Preview mode."
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "gtm.*(publish|create-version)|publish.*version|xw gtm publish"
+        }
+      }
+    },
+    {
+      "name": "gtm-ec-enable-info",
+      "description": "Remind about Google Ads UI step when enabling EC",
+      "hooks": [
+        {
+          "type": "info",
+          "message": "ℹ️ After enabling EC in GTM, remember to enable in Google Ads UI: https://ads.google.com/aw/conversions/settings/enhanced?ocid=2425288235"
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "enable-ec|enable.*enhanced|create-ec-variable"
+        }
+      }
+    },
+    {
+      "name": "gtm-container-id-check",
+      "description": "Verify correct container ID before operations",
+      "hooks": [
+        {
+          "type": "info",
+          "message": "ℹ️ Using default container: 176670340 (xwander.com / GTM-K8ZTWM4C). Verify this is correct."
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "xw gtm (list-tags|get-tag|enable-ec|create-version|publish)"
+        }
+      }
+    }
+  ],
+  "PostToolUse": [
+    {
+      "name": "gtm-publish-success-checklist",
+      "description": "Show verification checklist after successful publish",
+      "hooks": [
+        {
+          "type": "info",
+          "message": "✓ GTM publish complete. Verification steps:\n1. Check live site: view-source:https://xwander.com (Ctrl+F 'GTM-K8ZTWM4C')\n2. Test form: https://xwander.com/plan-your-holiday/\n3. Enable GTM Debug: https://tagassistant.google.com/\n4. Monitor conversions: https://ads.google.com/aw/conversions/summary?ocid=2425288235"
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "xw gtm publish",
+          "exitCode": 0
+        }
+      }
+    },
+    {
+      "name": "gtm-ec-enable-next-steps",
+      "description": "Show next steps after enabling EC",
+      "hooks": [
+        {
+          "type": "info",
+          "message": "✓ EC enabled in GTM. Next steps:\n1. Create version: xw gtm create-version --name 'vXX - Enable EC'\n2. Publish: xw gtm publish --latest\n3. Enable in Google Ads UI: https://ads.google.com/aw/conversions/settings/enhanced?ocid=2425288235\n4. Test in Preview mode\n5. Monitor match rate (48h): Check conversion diagnostics"
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "enable-ec",
+          "exitCode": 0
+        }
+      }
+    }
+  ]
+}
