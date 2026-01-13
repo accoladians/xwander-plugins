@@ -241,12 +241,19 @@ params.append({
 
 ## Testing Checklist After Fixes
 
-- [ ] `create_user_data_variable()` creates variable with type `awec`
-- [ ] AUTO mode creates variable with correct parameters
-- [ ] MANUAL mode creates variable with dataLayer mappings
-- [ ] `create_version()` provides detailed error on failure
-- [ ] EC-enabled tags can reference created variables
-- [ ] GTM version creation succeeds after fix
+- [x] `create_user_data_variable()` creates variable with type `awec`
+- [x] AUTO mode creates variable with correct parameters
+- [x] MANUAL mode creates variable with dataLayer mappings
+- [x] `create_version()` provides detailed error on failure
+- [x] EC-enabled tags can reference created variables
+- [x] GTM version creation succeeds after fix
+
+## Documentation Updates (2026-01-13)
+
+- [x] Created `CLAUDE.md` - AI agent quick reference with decision trees
+- [x] Updated `README.md` - Added validation, dry-run, MANUAL mode examples
+- [x] Updated `docs/API.md` - Full `validate_workspace()` docs, updated parameters
+- [x] Updated `docs/QUICK_REFERENCE.json` - Added validation_error, variable_types, ai_agent_hints
 
 ---
 

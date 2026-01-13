@@ -142,13 +142,59 @@ Create Data Layer Variable.
 
 **Returns**: `dict` - Created variable
 
-#### `create_user_data_variable(account_id, container_id, name="EC - User Data", workspace_id=None, auto_mode=True, folder_id=None)`
+#### `create_user_data_variable(account_id, container_id, name="EC - User Data", workspace_id=None, auto_mode=True, folder_id=None, email_var=None, phone_var=None, first_name_var=None, last_name_var=None)`
 Create Enhanced Conversions User-Provided Data variable.
 
-**Parameters**:
-- `auto_mode`: If True, auto-detect; if False, use dataLayer mapping
+**Variable Type**: `awec` (Google Ads Web Enhanced Conversions)
 
-**Returns**: `dict` - Created variable
+> **Warning**: Do NOT use type `gtes` (Google Tag Enhanced Settings) for EC - it causes compiler errors.
+
+**Parameters**:
+- `name`: Variable name (default: "EC - User Data")
+- `auto_mode`: If True, auto-detect form fields (recommended for standard HTML forms); if False, use dataLayer mapping
+- `folder_id`: Optional folder ID
+- `email_var`: MANUAL mode - GTM variable for email (e.g., "{{DLV - email}}")
+- `phone_var`: MANUAL mode - GTM variable for phone
+- `first_name_var`: MANUAL mode - GTM variable for first name
+- `last_name_var`: MANUAL mode - GTM variable for last name
+
+**Returns**: `dict` - Created variable with structure:
+```json
+{
+  "variableId": "6",
+  "name": "User-Provided Data",
+  "type": "awec",
+  "parameter": [
+    {"type": "template", "key": "mode", "value": "AUTO"},
+    {"type": "boolean", "key": "autoPhoneEnabled", "value": "true"},
+    {"type": "boolean", "key": "autoAddressEnabled", "value": "true"},
+    {"type": "boolean", "key": "autoEmailEnabled", "value": "true"}
+  ]
+}
+```
+
+**Raises**:
+- `ValidationError`: If MANUAL mode without any field mappings
+- `DuplicateResourceError`: If variable name already exists
+
+**Example (AUTO mode)**:
+```python
+var = var_mgr.create_user_data_variable(
+    account_id, container_id,
+    name="User-Provided Data"
+)
+```
+
+**Example (MANUAL mode)**:
+```python
+var = var_mgr.create_user_data_variable(
+    account_id, container_id,
+    name="EC - Custom Data",
+    auto_mode=False,
+    email_var="{{DLV - email}}",
+    phone_var="{{DLV - phone}}"
+)
+```
 
 ## TriggerManager
 
@@ -207,13 +253,55 @@ Sync workspace before version creation.
 
 **Returns**: `dict` - Sync response with potential mergeConflict field
 
-#### `create_version(account_id, container_id, version_name, notes="", workspace_id=None, auto_sync=True)`
+#### `validate_workspace(account_id, container_id, workspace_id=None, strict=False)`
+Validate workspace configuration before version creation.
+
+Checks for common issues that cause GTM compiler errors:
+1. Variable type requirements (e.g., `awec` needs `mode` parameter)
+2. Undefined variable references in tags/triggers
+3. Invalid trigger references in tags
+4. Missing required tag parameters
+
+**Parameters**:
+- `workspace_id`: Workspace ID (auto-detected if None)
+- `strict`: If True, raises ValidationError on any issue; otherwise returns issues
+
+**Returns**: `Tuple[bool, List[Dict]]` - (is_valid, list of issues)
+
+Each issue is a dict with:
+- `type`: 'error' or 'warning'
+- `resource_type`: 'variable', 'trigger', or 'tag'
+- `resource_id`: GTM resource ID
+- `resource_name`: Resource name
+- `message`: Description of the issue
+
+**Example**:
+```python
+is_valid, issues = workspace_mgr.validate_workspace(account_id, container_id)
+for issue in issues:
+    if issue['type'] == 'error':
+        print(f"Error in {issue['resource_type']} {issue['resource_name']}: {issue['message']}")
+```
+
+**Raises**:
+- `ValidationError`: If strict=True and validation fails
+- `GTMError`: If API calls fail
+
+#### `create_version(account_id, container_id, version_name, notes="", workspace_id=None, auto_sync=True, validate=True)`
 Create container version.
 
 **Parameters**:
+- `version_name`: Version name (e.g., "v44 - Enable EC")
+- `notes`: Version notes
 - `auto_sync`: Auto-sync before creating (recommended: True)
+- `validate`: Validate workspace before version creation (recommended: True)
 
 **Returns**: `dict` - containerVersion object
+
+**Raises**:
+- `ValidationError`: If validation fails (when validate=True)
+- `GTMError`: If version creation fails or compiler error
+- `WorkspaceConflictError`: If workspace has unresolvable conflicts
 
 #### `list_versions(account_id, container_id, include_deleted=False)`
 List container versions.
@@ -294,7 +382,8 @@ from xwander_gtm import (
     VariableManager,
     WorkspaceManager,
     Publisher,
-    GTMError
+    GTMError,
+    ValidationError
 )
 
 # Configuration
@@ -309,13 +398,13 @@ try:
     workspace_mgr = WorkspaceManager(client)
     publisher = Publisher(client)
 
-    # 1. Create Enhanced Conversions variable
+    # 1. Create Enhanced Conversions variable (AUTO mode)
     ec_var = var_mgr.create_user_data_variable(
         ACCOUNT_ID, CONTAINER_ID,
         name="EC - User Data",
-        auto_mode=True
+        auto_mode=True  # Recommended for standard forms
     )
-    print(f"Created variable: {ec_var['name']}")
+    print(f"Created variable: {ec_var['name']} (type: {ec_var['type']})")
 
     # 2. List conversion tags
     conv_tags = tag_mgr.list_conversion_tags(ACCOUNT_ID, CONTAINER_ID)
@@ -330,17 +419,34 @@ try:
             )
             print(f"Enabled EC on: {tag['name']}")
 
-    # 4. Create version
+    # 4. Validate workspace before version creation
+    is_valid, issues = workspace_mgr.validate_workspace(ACCOUNT_ID, CONTAINER_ID)
+    if not is_valid:
+        print("Validation errors found:")
+        for issue in issues:
+            if issue['type'] == 'error':
+                print(f"  - {issue['resource_type']} '{issue['resource_name']}': {issue['message']}")
+        exit(1)
+
+    # 5. Create version (validation also runs automatically here)
     version = workspace_mgr.create_version(
         ACCOUNT_ID, CONTAINER_ID,
         version_name="Enable Enhanced Conversions",
-        notes="Enabled EC on all conversion tags via API"
+        notes="Enabled EC on all conversion tags via API",
+        validate=True  # Default - catches issues before version creation
     )
     print(f"Created version: {version['containerVersionId']}")
 
-    # 5. Publish
+    # 6. Publish
     publisher.publish(ACCOUNT_ID, CONTAINER_ID, version['containerVersionId'])
     print("Published to LIVE!")
+
+except ValidationError as e:
+    print(f"Validation failed: {e.message}")
+    if e.details and 'issues' in e.details:
+        for issue in e.details['issues']:
+            print(f"  - {issue['type'].upper()}: {issue['message']}")
+    exit(e.exit_code)
 
 except GTMError as e:
     print(f"Error: {e.message}")
@@ -372,9 +478,27 @@ for tag_id in tag_ids:
 
 ## Best Practices
 
-1. **Always sync workspace** before creating versions (auto_sync=True by default)
-2. **Use try/except** for all API operations
-3. **Batch operations** to avoid rate limits
-4. **Verify changes** in GTM UI after API operations
-5. **Test in Preview mode** before publishing
-6. **Use descriptive version names** for audit trail
+1. **Validate workspace** before creating versions (validate=True by default)
+2. **Use dry-run** for CLI commands to preview changes
+3. **Always sync workspace** before creating versions (auto_sync=True by default)
+4. **Use try/except** for all API operations
+5. **Batch operations** to avoid rate limits
+6. **Verify changes** in GTM UI after API operations
+7. **Test in Preview mode** before publishing
+8. **Use descriptive version names** for audit trail
+
+## Safety Checklist
+
+Before any GTM changes:
+- [ ] Run `xw gtm validate-workspace` to catch issues early
+- [ ] Use `--dry-run` to preview changes
+- [ ] Test in GTM Preview mode before publishing
+- [ ] Only publish after verification
+
+## For AI Agents
+
+See **[CLAUDE.md](../CLAUDE.md)** for:
+- Decision trees for choosing operations
+- Common workflow patterns
+- Error handling reference
+- Safety checklist optimized for automation

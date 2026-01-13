@@ -9,9 +9,15 @@ Google Tag Manager operations plugin for the xwander platform.
 - Variable management (data layer variables, Enhanced Conversions variables)
 - Trigger management (custom events, page views)
 - Workspace management with automatic conflict resolution
+- **Workspace validation** before version creation (catches issues early)
 - Version creation with proper sync validation
+- **Dry-run mode** for previewing changes without executing
 - Version publishing to LIVE
 - CLI interface via `xw gtm` commands
+
+## Quick Start for AI Agents
+
+See **[CLAUDE.md](CLAUDE.md)** for AI-optimized decision trees and workflows.
 
 ## Architecture
 
@@ -99,12 +105,26 @@ xw gtm list-variables
 # Create data layer variable
 xw gtm create-variable --name "DLV - ecommerce.value" --datalayer-name "ecommerce.value"
 
-# Create Enhanced Conversions variable
-xw gtm create-ec-variable --name "EC - User Data"
+# Create Enhanced Conversions variable (AUTO mode - recommended)
+xw gtm create-ec-variable --name "User-Provided Data"
+xw gtm create-ec-variable --name "User-Provided Data" --dry-run  # Preview first
 
-# Manual mode (dataLayer mapping)
-xw gtm create-ec-variable --name "EC - Manual Data" --manual
+# Create EC variable (MANUAL mode - for dataLayer mapping)
+xw gtm create-ec-variable --name "EC - Custom" --manual \
+  --email-var "{{DLV - email}}" \
+  --phone-var "{{DLV - phone}}" \
+  --first-name-var "{{DLV - first_name}}" \
+  --last-name-var "{{DLV - last_name}}"
 ```
+
+**Variable Types Reference**:
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `awec` | Google Ads Web Enhanced Conversions | User-Provided Data for EC (CORRECT) |
+| `gtes` | Google Tag Enhanced Settings | NOT for EC - causes compiler errors |
+| `v` | Data Layer Variable | Reading dataLayer values |
+| `c` | Constant | Static configuration values |
+| `jsm` | Custom JavaScript | Complex dynamic logic |
 
 ### Triggers
 
@@ -116,20 +136,30 @@ xw gtm list-triggers
 xw gtm create-trigger --name "GA4 | Purchase Events" --event "purchase|transaction" --regex
 ```
 
-### Workspace & Versions
+### Workspace Validation & Versions
 
 ```bash
+# Validate workspace before changes (RECOMMENDED)
+xw gtm validate-workspace
+xw gtm validate-workspace --json  # Machine-readable output
+
 # Sync workspace
 xw gtm sync-workspace
 
-# Create version
-xw gtm create-version --name "v39 - Fix GCLID capture" --notes "Updated GTM tag 66"
+# Preview version creation (DRY-RUN)
+xw gtm create-version --name "v44 - Enable EC" --dry-run
+
+# Create version (validation runs automatically)
+xw gtm create-version --name "v44 - Enable EC" --notes "Added EC to all conversion tags"
+
+# Skip validation (NOT RECOMMENDED)
+xw gtm create-version --name "v44" --skip-validation
 
 # List versions
 xw gtm list-versions
 
 # Publish version
-xw gtm publish --version-id 39
+xw gtm publish --version-id 44
 
 # Publish latest version
 xw gtm publish --latest
@@ -160,12 +190,35 @@ tag_mgr.enable_enhanced_conversions(
     user_data_variable='User-Provided Data'
 )
 
-# Create version
+# Create EC variable (AUTO mode)
+var_mgr = VariableManager(client)
+ec_var = var_mgr.create_user_data_variable(
+    '6215694602', '176670340',
+    name='User-Provided Data',
+    auto_mode=True  # Recommended for standard forms
+)
+
+# Create EC variable (MANUAL mode - for dataLayer)
+ec_var_manual = var_mgr.create_user_data_variable(
+    '6215694602', '176670340',
+    name='EC - Custom Data',
+    auto_mode=False,
+    email_var='{{DLV - email}}',
+    phone_var='{{DLV - phone}}'
+)
+
+# Validate workspace before version creation (RECOMMENDED)
 workspace_mgr = WorkspaceManager(client)
+is_valid, issues = workspace_mgr.validate_workspace('6215694602', '176670340')
+for issue in issues:
+    print(f"{issue['type']}: {issue['message']}")
+
+# Create version (validates automatically)
 version = workspace_mgr.create_version(
     '6215694602', '176670340',
-    version_name='v40 - Automated update',
-    notes='Created via API'
+    version_name='v44 - Automated update',
+    notes='Created via API',
+    validate=True  # Default, catches issues before version creation
 )
 
 # Publish

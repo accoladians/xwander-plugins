@@ -1,8 +1,14 @@
 {
   "_description": "Quick reference for xwander-gtm plugin",
-  "_updated": "2026-01-10",
+  "_updated": "2026-01-13",
 
   "common_commands": {
+    "validate_workspace": {
+      "command": "xw gtm validate-workspace",
+      "description": "Validate workspace configuration before version creation",
+      "flags": ["--json (machine-readable)", "--workspace-id (override auto-detect)"],
+      "checks": ["awec variables have mode parameter", "gtes type warning", "variable references valid", "trigger references valid", "conversion tags have required params"]
+    },
     "list_conversion_tags": {
       "command": "xw gtm list-conversion-tags",
       "description": "List all Google Ads conversion tags with EC status",
@@ -15,8 +21,10 @@
     },
     "create_ec_variable": {
       "command": "xw gtm create-ec-variable --name 'EC - User Data'",
-      "description": "Create Enhanced Conversions User-Provided Data variable",
-      "modes": ["AUTO (auto-detect)", "MANUAL (--manual flag for dataLayer mapping)"]
+      "description": "Create Enhanced Conversions User-Provided Data variable (type: awec)",
+      "modes": ["AUTO (auto-detect forms)", "MANUAL (--manual with --email-var, --phone-var, etc.)"],
+      "flags": ["--dry-run (preview without creating)", "--email-var", "--phone-var", "--first-name-var", "--last-name-var"],
+      "warning": "Do NOT use gtes type - causes compiler errors"
     },
     "publish_latest": {
       "command": "xw gtm publish --latest",
@@ -24,9 +32,10 @@
       "warning": "Use with caution - publishes immediately to production"
     },
     "create_version": {
-      "command": "xw gtm create-version --name 'v40 - Description' --notes 'Details'",
-      "description": "Create a new container version (auto-syncs workspace)",
-      "note": "Version is created but NOT published"
+      "command": "xw gtm create-version --name 'v44 - Description' --notes 'Details'",
+      "description": "Create a new container version (validates and syncs workspace)",
+      "flags": ["--dry-run (preview changes)", "--skip-validation (not recommended)"],
+      "note": "Validation runs automatically before version creation"
     }
   },
 
@@ -34,11 +43,15 @@
     "enable_ec_all_tags": {
       "description": "Enable Enhanced Conversions on all conversion tags",
       "steps": [
-        "1. Create User-Provided Data variable: xw gtm create-ec-variable",
-        "2. List conversion tags to get IDs: xw gtm list-conversion-tags",
-        "3. Enable EC on each tag: xw gtm enable-ec --tag-id <ID>",
-        "4. Create version: xw gtm create-version --name 'EC Enabled'",
-        "5. Publish: xw gtm publish --latest"
+        "1. Preview EC variable: xw gtm create-ec-variable --name 'User-Provided Data' --dry-run",
+        "2. Create User-Provided Data variable: xw gtm create-ec-variable --name 'User-Provided Data'",
+        "3. List conversion tags to get IDs: xw gtm list-conversion-tags",
+        "4. Enable EC on each tag: xw gtm enable-ec --tag-id <ID> --variable-name 'User-Provided Data'",
+        "5. Validate workspace: xw gtm validate-workspace",
+        "6. Preview version: xw gtm create-version --name 'EC Enabled' --dry-run",
+        "7. Create version: xw gtm create-version --name 'EC Enabled'",
+        "8. Test in GTM Preview mode",
+        "9. Publish: xw gtm publish --latest"
       ]
     },
     "import_bokun_ecommerce": {
@@ -95,6 +108,11 @@
   },
 
   "error_handling": {
+    "validation_error": {
+      "exit_code": 1,
+      "causes": ["awec variable missing mode parameter", "gtes type used for EC", "Undefined variable reference", "Invalid trigger reference", "Missing required tag parameters"],
+      "fix": "Run 'xw gtm validate-workspace --json' to see all issues, then fix each one"
+    },
     "authentication_error": {
       "exit_code": 3,
       "causes": ["Missing credentials file", "Invalid credentials", "Expired refresh token"],
@@ -114,6 +132,16 @@
       "exit_code": 2,
       "causes": ["API rate limit exceeded (100 req/100s, 1500 req/day)"],
       "fix": "Wait and retry, or batch operations"
+    },
+    "duplicate_resource": {
+      "exit_code": 1,
+      "causes": ["Resource with same name already exists"],
+      "fix": "Use different name or update existing resource"
+    },
+    "resource_not_found": {
+      "exit_code": 1,
+      "causes": ["Tag/variable/trigger ID does not exist"],
+      "fix": "Run list-* command to verify resource IDs"
     }
   },
 
@@ -162,7 +190,43 @@
     }
   },
 
+  "variable_types": {
+    "awec": {
+      "name": "Google Ads Web Enhanced Conversions",
+      "use_for": "User-Provided Data variable for Enhanced Conversions",
+      "status": "CORRECT type for EC"
+    },
+    "gtes": {
+      "name": "Google Tag Enhanced Settings",
+      "use_for": "NOT for EC - this is a different feature",
+      "status": "WRONG - causes compiler errors if used for EC"
+    },
+    "v": {
+      "name": "Data Layer Variable",
+      "use_for": "Reading values from dataLayer"
+    },
+    "c": {
+      "name": "Constant",
+      "use_for": "Static configuration values"
+    },
+    "jsm": {
+      "name": "Custom JavaScript",
+      "use_for": "Complex dynamic logic"
+    }
+  },
+
   "common_pitfalls": {
+    "wrong_ec_variable_type": {
+      "issue": "GTM compiler error when creating version",
+      "cause": "Used type 'gtes' instead of 'awec' for EC User-Provided Data",
+      "solution": "Always use type 'awec' for Enhanced Conversions variables. Run validate-workspace to catch this.",
+      "error_message": "ValidationError: awec variable missing 'mode' parameter"
+    },
+    "missing_mode_parameter": {
+      "issue": "EC variable created without mode parameter",
+      "cause": "Variable created with wrong structure",
+      "solution": "Use create-ec-variable command which sets mode=AUTO or mode=MANUAL automatically"
+    },
     "forgot_sync": {
       "issue": "Version created but not persisted",
       "cause": "Workspace not synced before create_version",
@@ -182,13 +246,31 @@
       "issue": "RateLimitError (exit code 2)",
       "cause": "Exceeded API limits (100 req/100s)",
       "solution": "Batch operations or add delays between requests"
+    },
+    "undefined_variable_reference": {
+      "issue": "Tag/trigger references undefined variable",
+      "cause": "Variable name typo or variable not created",
+      "solution": "Run validate-workspace to detect undefined references before version creation"
     }
   },
 
   "related_documentation": {
+    "claude_md": "/srv/plugins/xwander-gtm/CLAUDE.md",
+    "api_reference": "/srv/plugins/xwander-gtm/docs/API.md",
     "gtm_json": "/srv/xwander-platform/xwander.com/growth/knowledge/gtm.json",
     "oauth_setup": "/srv/xwander-platform/xwander.com/growth/docs/GTM-OAUTH-SCOPES-SUMMARY.md",
-    "ui_guide": "/srv/xwander-platform/xwander.com/growth/docs/GTM-HUBSPOT-UI-GUIDE-2025.md",
-    "api_reference": "/srv/plugins/xwander-gtm/docs/API.md"
+    "ui_guide": "/srv/xwander-platform/xwander.com/growth/docs/GTM-HUBSPOT-UI-GUIDE-2025.md"
+  },
+
+  "ai_agent_hints": {
+    "decision_tree": "See CLAUDE.md for quick decision tree on READ/CREATE/UPDATE/PUBLISH",
+    "dry_run_first": "ALWAYS use --dry-run before create operations",
+    "validate_before_version": "Run validate-workspace before create-version",
+    "variable_type_awec": "Enhanced Conversions = type 'awec', NOT 'gtes'",
+    "default_ids": {
+      "account_id": "6215694602",
+      "container_id": "176670340",
+      "note": "These are defaults, no need to specify for Xwander container"
+    }
   }
 }
