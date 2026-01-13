@@ -1,0 +1,65 @@
+{
+  "PreToolUse": [
+    {
+      "hooks": [
+        {
+          "type": "warn",
+          "message": "⚠️ Budget change detected for Xwander Nordic (Customer: 2425288235). Please confirm the new budget amount is correct before proceeding."
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "budget.*(update|set|change)|campaign.*budget|set-budget|modify.*budget"
+        }
+      }
+    },
+    {
+      "hooks": [
+        {
+          "type": "warn",
+          "message": "⚠️ Campaign pause/removal detected. This action affects active campaigns for Xwander Nordic. Confirm this is intentional."
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "campaign.*(pause|remove|delete|disable)|status.*PAUSED|status.*REMOVED"
+        }
+      }
+    },
+    {
+      "hooks": [
+        {
+          "type": "info",
+          "message": "💡 Tip: For bulk theme additions, consider using --dry-run first to preview changes."
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "pmax signals.*bulk.*--file"
+        }
+      }
+    }
+  ],
+  "PostToolUse": [
+    {
+      "hooks": [
+        {
+          "type": "success",
+          "message": "✅ Search themes added successfully. Monitor performance in 48-72 hours for optimization impact."
+        }
+      ],
+      "filter": {
+        "toolNames": ["Bash"],
+        "content": {
+          "regex": "pmax signals.*(add|bulk)"
+        },
+        "output": {
+          "regex": "(Added search theme|Successfully added|✓ Added)"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "xwander-ga4",
+  "version": "1.0.0",
+  "description": "Google Analytics 4 API wrapper with reporting and dimension management",
+  "author": "Xwander Growth Team",
+  "license": "MIT",
+  "main": "xwander_ga4",
+  "entryPoint": "xwander_ga4.cli:cli",
+  "commands": {
+    "report": "Run a GA4 report with custom dimensions and metrics",
+    "realtime": "Get realtime active users",
+    "traffic-sources": "Get traffic by source/medium",
+    "top-pages": "Get top pages by sessions",
+    "conversions": "Get conversions by event",
+    "daily-summary": "Get daily metrics summary",
+    "dimension": "Manage custom dimensions",
+    "audience": "Manage audiences"
+  },
+  "dependencies": [
+    "google-analytics-data>=0.18.0",
+    "google-analytics-admin>=0.20.0",
+    "click>=8.0.0"
+  ],
+  "configuration": {
+    "property_id": {
+      "type": "string",
+      "default": "358203796",
+      "description": "Default GA4 property ID (Xwander)"
+    },
+    "credentials": {
+      "type": "string",
+      "description": "Path to Google service account JSON (or GOOGLE_APPLICATION_CREDENTIALS env var)"
+    }
+  },
+  "constants": {
+    "xwander_property_id": "358203796",
+    "xwander_account_id": "89715181",
+    "xwander_timezone": "Europe/Helsinki",
+    "xwander_currency": "EUR",
+    "xwander_website": "xwander.com"
+  },
+  "documentation": {
+    "quickStart": "docs/QUICK_REFERENCE.json",
+    "api": "docs/API.md"
+  }
+}

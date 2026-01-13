@@ -1,0 +1,17 @@
+{
+  "name": "xwander-ads",
+  "version": "1.0.1",
+  "description": "Google Ads API - Performance Max, conversions, reporting for Xwander Nordic travel marketing",
+  "author": {
+    "name": "Xwander Growth Team",
+    "email": "joni@accolade.fi"
+  },
+  "homepage": "https://github.com/accoladians/xwander-plugins",
+  "repository": "https://github.com/accoladians/xwander-plugins",
+  "license": "Proprietary",
+  "keywords": ["google-ads", "pmax", "marketing", "travel", "conversions", "gaql"],
+  "commands": "./commands/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json"
+}

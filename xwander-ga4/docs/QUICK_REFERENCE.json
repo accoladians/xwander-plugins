@@ -1,0 +1,285 @@
+{
+  "_description": "Xwander GA4 Plugin Quick Reference",
+  "_updated": "2026-01-10",
+  "_version": "1.0.0",
+
+  "installation": {
+    "command": "pip install -e /srv/plugins/xwander-ga4",
+    "dependencies": [
+      "google-analytics-data",
+      "google-analytics-admin",
+      "click"
+    ]
+  },
+
+  "configuration": {
+    "credentials": "GOOGLE_APPLICATION_CREDENTIALS environment variable",
+    "default_property_id": "358203796",
+    "default_account_id": "89715181",
+    "requirements": "Must have Google Analytics 4 Admin access"
+  },
+
+  "cli_commands": {
+    "report": {
+      "command": "xw ga4 report",
+      "description": "Run a GA4 report",
+      "examples": [
+        "xw ga4 report --dimensions date source --metrics sessions users --days 7",
+        "xw ga4 report --dimensions date --metrics sessions --start-date 2026-01-01 --end-date 2026-01-07",
+        "xw ga4 report --property-id 358203796 --dimensions pagePath --metrics sessions --limit 50 --format json"
+      ],
+      "options": {
+        "--property-id": "GA4 property ID (default: 358203796)",
+        "--dimensions": "Dimension names (required, multiple)",
+        "--metrics": "Metric names (required, multiple)",
+        "--start-date": "Start date YYYY-MM-DD (optional)",
+        "--end-date": "End date YYYY-MM-DD (optional)",
+        "--days": "Days back if no date range (default: 7)",
+        "--limit": "Max rows (default: 100)",
+        "--format": "Output format: table, json, summary (default: table)"
+      }
+    },
+
+    "realtime": {
+      "command": "xw ga4 realtime",
+      "description": "Get realtime active users report",
+      "examples": [
+        "xw ga4 realtime",
+        "xw ga4 realtime --dimensions country city",
+        "xw ga4 realtime --property-id 358203796"
+      ],
+      "options": {
+        "--property-id": "GA4 property ID (default: 358203796)",
+        "--dimensions": "Dimension names (optional)",
+        "--metrics": "Metric names (optional)"
+      }
+    },
+
+    "traffic-sources": {
+      "command": "xw ga4 traffic-sources",
+      "description": "Get traffic by source/medium",
+      "examples": [
+        "xw ga4 traffic-sources",
+        "xw ga4 traffic-sources --days 30 --limit 50",
+        "xw ga4 traffic-sources --property-id 358203796 --days 90"
+      ]
+    },
+
+    "top-pages": {
+      "command": "xw ga4 top-pages",
+      "description": "Get top pages by sessions",
+      "examples": [
+        "xw ga4 top-pages",
+        "xw ga4 top-pages --days 30 --limit 25"
+      ]
+    },
+
+    "conversions": {
+      "command": "xw ga4 conversions",
+      "description": "Get conversions by event",
+      "examples": [
+        "xw ga4 conversions",
+        "xw ga4 conversions --days 30"
+      ]
+    },
+
+    "daily-summary": {
+      "command": "xw ga4 daily-summary",
+      "description": "Get daily summary (sessions, users, events)",
+      "examples": [
+        "xw ga4 daily-summary",
+        "xw ga4 daily-summary --days 30"
+      ]
+    },
+
+    "dimension_create": {
+      "command": "xw ga4 dimension create",
+      "description": "Create custom dimension",
+      "examples": [
+        "xw ga4 dimension create --display-name 'Product Type' --parameter-name product_type --scope EVENT --description 'Day tours vs multi-day packages'",
+        "xw ga4 dimension create --display-name 'Tour Type' --parameter-name tour_type --scope EVENT"
+      ],
+      "options": {
+        "--property-id": "GA4 property ID (default: 358203796)",
+        "--display-name": "User-friendly name (required)",
+        "--parameter-name": "Event parameter name (required)",
+        "--scope": "EVENT, USER, or ITEM (default: EVENT)",
+        "--description": "Optional description"
+      }
+    },
+
+    "dimension_list": {
+      "command": "xw ga4 dimension list",
+      "description": "List custom dimensions",
+      "examples": [
+        "xw ga4 dimension list",
+        "xw ga4 dimension list --scope EVENT",
+        "xw ga4 dimension list --property-id 358203796 --scope USER"
+      ],
+      "options": {
+        "--property-id": "GA4 property ID (default: 358203796)",
+        "--scope": "Filter by scope: EVENT, USER, or ITEM"
+      }
+    },
+
+    "audience_list": {
+      "command": "xw ga4 audience list",
+      "description": "List audiences",
+      "examples": [
+        "xw ga4 audience list",
+        "xw ga4 audience list --sort-by-size",
+        "xw ga4 audience list --property-id 358203796"
+      ],
+      "options": {
+        "--property-id": "GA4 property ID (default: 358203796)",
+        "--sort-by-size": "Sort by member count (largest first)"
+      }
+    },
+
+    "audience_search": {
+      "command": "xw ga4 audience search",
+      "description": "Search audiences by name",
+      "examples": [
+        "xw ga4 audience search 'Northern Lights'",
+        "xw ga4 audience search paid_search"
+      ]
+    }
+  },
+
+  "python_api": {
+    "GA4DataClient": {
+      "description": "Google Analytics 4 Data API client",
+      "usage": "from xwander_ga4 import GA4DataClient, ReportBuilder",
+      "methods": {
+        "run_report()": "Run a report with date ranges, dimensions, metrics",
+        "run_realtime_report()": "Get realtime active users"
+      },
+      "example": "client = GA4DataClient('358203796')\nresult = client.run_report(date_ranges=[{'start_date': '2026-01-01', 'end_date': '2026-01-07'}], dimensions=['date'], metrics=['sessions'])"
+    },
+
+    "ReportBuilder": {
+      "description": "High-level report building utilities",
+      "methods": {
+        "last_n_days(days, dimensions, metrics)": "Report for last N days",
+        "date_range(start, end, dimensions, metrics)": "Report for specific date range",
+        "traffic_sources(days)": "Traffic by source/medium",
+        "top_pages(days)": "Top pages by sessions",
+        "conversions(days)": "Conversions by event",
+        "daily_summary(days)": "Daily metrics",
+        "realtime_summary()": "Realtime active users"
+      }
+    },
+
+    "ReportFormatter": {
+      "description": "Format reports for display",
+      "methods": {
+        "table(data, columns)": "Format as ASCII table",
+        "json(data)": "Format as JSON",
+        "summary(data)": "Format as text summary"
+      }
+    },
+
+    "DimensionManager": {
+      "description": "Manage custom dimensions",
+      "methods": {
+        "create(display_name, parameter_name, scope)": "Create custom dimension",
+        "list()": "List all custom dimensions",
+        "by_scope(scope)": "Get dimensions for a scope",
+        "get_by_name(parameter_name)": "Get dimension by name"
+      }
+    },
+
+    "AudienceManager": {
+      "description": "Manage audiences",
+      "methods": {
+        "list()": "List all audiences",
+        "filter_by_name(pattern)": "Search audiences by name",
+        "get_by_name(name)": "Get audience by exact name",
+        "sorted_by_size()": "Sort audiences by member count"
+      }
+    }
+  },
+
+  "common_dimensions": [
+    "date",
+    "month",
+    "year",
+    "dayOfWeek",
+    "source",
+    "medium",
+    "campaign",
+    "country",
+    "region",
+    "city",
+    "pagePath",
+    "pageTitle",
+    "eventName",
+    "deviceCategory",
+    "browser",
+    "operatingSystem"
+  ],
+
+  "common_metrics": [
+    "sessions",
+    "users",
+    "newUsers",
+    "bounceRate",
+    "sessionDuration",
+    "screenPageViews",
+    "eventCount",
+    "eventValue",
+    "conversions",
+    "conversionValue",
+    "activeUsers"
+  ],
+
+  "dimension_scopes": {
+    "EVENT": "Segment by event properties (product type, tour type)",
+    "USER": "Segment by user properties (user tier, membership status)",
+    "ITEM": "Segment by item properties (product details)"
+  },
+
+  "examples": {
+    "python_report": {
+      "title": "Run a report in Python",
+      "code": "from xwander_ga4 import GA4DataClient, ReportBuilder, ReportFormatter\n\nclient = GA4DataClient('358203796')\nbuilder = ReportBuilder(client)\n\n# Get traffic sources\nresult = builder.traffic_sources(days=30)\n\n# Format and display\nformatter = ReportFormatter()\nprint(formatter.table(result))"
+    },
+
+    "create_dimension": {
+      "title": "Create a custom dimension",
+      "code": "from xwander_ga4 import GA4AdminClient, DimensionManager\n\nadmin = GA4AdminClient('358203796')\nmanager = DimensionManager(admin)\n\nresult = manager.create(\n    display_name='Product Type',\n    parameter_name='product_type',\n    scope='EVENT',\n    description='Day tours vs multi-day packages'\n)\n\nprint(f\"Created: {result['api_name']}\")"
+    },
+
+    "list_audiences": {
+      "title": "List audiences sorted by size",
+      "code": "from xwander_ga4 import GA4AdminClient, AudienceManager\n\nadmin = GA4AdminClient('358203796')\nmanager = AudienceManager(admin)\n\naudiences = manager.sorted_by_size()\nfor aud in audiences:\n    print(f\"{aud['name']}: {aud['member_count']:,} members\")"
+    }
+  },
+
+  "authentication": {
+    "requirement": "Google Cloud service account with Analytics Admin access",
+    "setup": [
+      "1. Create service account in Google Cloud Console",
+      "2. Generate JSON key",
+      "3. Add to Google Analytics 4 property as Admin",
+      "4. Set GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json",
+      "5. Test: python -c 'from xwander_ga4 import GA4DataClient; GA4DataClient(\"358203796\")'"
+    ]
+  },
+
+  "errors": {
+    "GA4ConfigError": "Missing credentials or invalid configuration",
+    "GA4APIError": "GA4 API returned an error",
+    "GA4ValidationError": "Invalid request parameters",
+    "GA4AuthError": "Authentication/authorization failed"
+  },
+
+  "xwander_constants": {
+    "property_id": "358203796",
+    "account_id": "89715181",
+    "timezone": "Europe/Helsinki",
+    "currency": "EUR",
+    "website": "xwander.com",
+    "industry": "Travel"
+  }
+}

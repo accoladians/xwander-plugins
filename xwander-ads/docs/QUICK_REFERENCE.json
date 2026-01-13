@@ -1,0 +1,147 @@
+{
+  "plugin": "xwander-ads",
+  "version": "1.0.0",
+  "description": "Google Ads API integration for Performance Max and more",
+
+  "common_commands": {
+    "list_pmax_campaigns": {
+      "command": "xw ads pmax list --customer-id 2425288235 --campaigns",
+      "description": "List all Performance Max campaigns",
+      "output": "Campaign ID, name, status, budget, spent, performance metrics"
+    },
+    "list_asset_groups": {
+      "command": "xw ads pmax list --customer-id 2425288235 --asset-groups --campaign-id 23423204148",
+      "description": "List asset groups for a campaign",
+      "output": "Asset group ID, name, campaign ID, status"
+    },
+    "get_campaign_details": {
+      "command": "xw ads pmax get --customer-id 2425288235 --campaign-id 23423204148",
+      "description": "Get detailed campaign information",
+      "output": "Full campaign details including targeting, budget, and performance"
+    },
+    "list_search_themes": {
+      "command": "xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 list",
+      "description": "List all search themes for an asset group",
+      "output": "Numbered list of search theme texts"
+    },
+    "add_search_theme": {
+      "command": "xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 add --theme \"lapland summer tours\"",
+      "description": "Add a single search theme to asset group",
+      "output": "Success message with resource name"
+    },
+    "bulk_add_themes": {
+      "command": "xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 bulk --file themes.txt",
+      "description": "Bulk add search themes from file (one per line)",
+      "output": "Progress messages and success count"
+    },
+    "remove_signal": {
+      "command": "xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 remove --resource-name 'customers/2425288235/assetGroupSignals/6655152002~123'",
+      "description": "Remove a specific signal",
+      "output": "Success confirmation"
+    }
+  },
+
+  "xwander_context": {
+    "customer_id": "2425288235",
+    "account_name": "Xwander Nordic",
+    "currency": "EUR",
+    "timezone": "Europe/Helsinki",
+    "pmax_campaigns": {
+      "main": {
+        "campaign_id": "23423204148",
+        "name": "Xwander PMax Nordic",
+        "asset_groups": {
+          "EN": "6655152002",
+          "DE": "6655251007",
+          "FR": "6655151999",
+          "ES": "6655250848"
+        }
+      }
+    },
+    "config_location": "/srv/xwander-platform/.env/google-apis/google-ads.yaml"
+  },
+
+  "api_versions": {
+    "default": "v20",
+    "supported": ["v20", "v21", "v22"],
+    "usage": "Add --api-version v22 to use newer version"
+  },
+
+  "error_handling": {
+    "exit_codes": {
+      "0": "Success",
+      "1": "Generic error",
+      "2": "Quota exceeded",
+      "3": "Authentication failed",
+      "4": "Resource not found (campaign/asset group)",
+      "5": "Duplicate signal",
+      "6": "Invalid resource",
+      "7": "Budget error",
+      "8": "Validation error"
+    }
+  },
+
+  "file_formats": {
+    "themes_txt": {
+      "description": "Plain text file for bulk theme upload",
+      "format": "One search theme per line",
+      "example": "lapland summer tours\\nmidnight sun experiences\\nnorthern lights tours"
+    }
+  },
+
+  "best_practices": {
+    "search_themes": {
+      "count": "5-25 themes per asset group recommended",
+      "length": "2-10 words per theme",
+      "relevance": "Match user intent and landing page content",
+      "specificity": "Mix broad and specific themes"
+    },
+    "batch_operations": {
+      "note": "Bulk operations process in batches of 50 (API limit)",
+      "error_handling": "Duplicates are skipped by default with --skip-duplicates flag"
+    }
+  },
+
+  "cli_patterns": {
+    "customer_id": {
+      "accepts": ["2425288235", "242-528-8235"],
+      "normalized": "Hyphens automatically removed"
+    },
+    "caching": {
+      "future_feature": "Add --cached flag to use local cache instead of API",
+      "status": "Not yet implemented"
+    }
+  },
+
+  "examples": {
+    "workflow_add_themes": {
+      "description": "Complete workflow to add search themes",
+      "steps": [
+        "1. List current themes: xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 list",
+        "2. Create themes.txt file with new themes (one per line)",
+        "3. Bulk add: xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 bulk --file themes.txt",
+        "4. Verify: xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 list"
+      ]
+    },
+    "workflow_campaign_overview": {
+      "description": "Get complete campaign overview",
+      "steps": [
+        "1. List campaigns: xw ads pmax list --customer-id 2425288235 --campaigns",
+        "2. Get campaign details: xw ads pmax get --customer-id 2425288235 --campaign-id 23423204148",
+        "3. List asset groups: xw ads pmax list --customer-id 2425288235 --asset-groups --campaign-id 23423204148",
+        "4. Check signals for each asset group: xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 list"
+      ]
+    }
+  },
+
+  "migration_notes": {
+    "from_toolkit_script": "This plugin replaces toolkit/pmax_signals.py",
+    "compatibility": "CLI commands maintain same interface as original script",
+    "improvements": [
+      "Modular architecture for easier maintenance",
+      "Better error handling with specific exit codes",
+      "Support for multiple API versions",
+      "Extensible for future features (caching, additional operations)"
+    ]
+  }
+}
