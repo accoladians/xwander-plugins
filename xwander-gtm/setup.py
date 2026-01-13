@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='xwander-gtm',
-    version='1.0.0',
+    version='1.1.0',
     description='Google Tag Manager operations plugin for xwander platform',
     author='Xwander Growth Team',
     packages=find_packages(),

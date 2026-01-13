@@ -22,7 +22,25 @@ DEFAULT_CONTAINER_ID = "176670340"
 
 @click.group()
 def cli():
-    """Google Tag Manager operations"""
+    """Google Tag Manager operations.
+
+    \b
+    Examples:
+      # List tags and filter by type
+      xw-gtm list-tags --type awct
+
+      # Validate workspace before publishing
+      xw-gtm validate-workspace
+
+      # Create version with dry-run
+      xw-gtm create-version --name "v2024-Q1" --dry-run
+
+      # Enable Enhanced Conversions
+      xw-gtm create-ec-variable --name "EC Data" --mode AUTO
+
+      # Publish to live
+      xw-gtm publish-version --version-id 123
+    """
     pass
 
 
@@ -36,7 +54,19 @@ def cli():
 @click.option('--type', 'tag_type', help='Filter by tag type (e.g., awct, gaawe)')
 @click.option('--json', 'output_json', is_flag=True, help='Output as JSON')
 def list_tags_cmd(account_id, container_id, tag_type, output_json):
-    """List all tags in container"""
+    """List all tags in container.
+
+    \b
+    Examples:
+      # List all tags
+      xw-gtm list-tags
+
+      # Filter by conversion tags
+      xw-gtm list-tags --type awct
+
+      # Get JSON output for processing
+      xw-gtm list-tags --json | jq '.[] | select(.paused == false)'
+    """
     try:
         client = GTMClient()
         tag_mgr = TagManager(client)

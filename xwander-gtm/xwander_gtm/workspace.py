@@ -156,9 +156,12 @@ class WorkspaceManager:
             var_name = var.get('name', 'Unknown')
             var_type = var.get('type')
             params = var.get('parameter', [])
+            # Create a set of parameter keys for quick lookup (e.g., 'mode', 'email', 'phone')
             param_keys = {p.get('key') for p in params}
 
             # Check awec (Enhanced Conversions) variable requirements
+            # awec = Google Ads Web Enhanced Conversions variable type
+            # MUST have 'mode' parameter set to either 'AUTO' or 'MANUAL'
             if var_type == 'awec':
                 if 'mode' not in param_keys:
                     issues.append({
@@ -170,6 +173,8 @@ class WorkspaceManager:
                     })
 
             # Check gtes type - this is usually wrong for EC
+            # gtes = Google Tag Services (deprecated for EC, causes compiler errors)
+            # Common mistake: using 'gtes' instead of 'awec' for Enhanced Conversions
             if var_type == 'gtes':
                 issues.append({
                     'type': 'warning',
@@ -185,13 +190,17 @@ class WorkspaceManager:
             trig_name = trigger.get('name', 'Unknown')
 
             # Check variable references in trigger conditions
+            # Triggers can reference variables in their filter conditions (e.g., {{Page URL}} equals "...")
+            # We need to verify all {{Variable Name}} references resolve to actual variables
             for condition in trigger.get('filter', []) + trigger.get('customEventFilter', []):
                 for param in condition.get('parameter', []):
+                    # arg0 is typically the variable reference in condition comparisons
                     if param.get('key') == 'arg0':
                         value = param.get('value', '')
-                        # Check for {{Variable Name}} syntax
+                        # Extract all {{Variable Name}} patterns using regex
                         var_refs = re.findall(r'\{\{([^}]+)\}\}', value)
                         for ref in var_refs:
+                            # Skip built-in variables (prefixed with _) and check if variable exists
                             if ref not in variable_names and not ref.startswith('_'):
                                 issues.append({
                                     'type': 'error',
@@ -220,11 +229,13 @@ class WorkspaceManager:
                     })
 
             # Check variable references in parameters
+            # Tags often reference variables in their config (e.g., conversionValue: {{Order Total}})
             for param in params:
                 value = str(param.get('value', ''))
+                # Extract all {{Variable Name}} patterns
                 var_refs = re.findall(r'\{\{([^}]+)\}\}', value)
                 for ref in var_refs:
-                    # Skip built-in variables (start with _ or in known built-in list)
+                    # Skip built-in variables (prefixed with _ like {{_event}} or in GTM_BUILTIN_VARIABLES list)
                     if ref.startswith('_') or ref in GTM_BUILTIN_VARIABLES:
                         continue
                     if ref not in variable_names:
