@@ -13,6 +13,8 @@ from .auth import get_client, test_auth
 from .exceptions import AdsError
 from . import pmax
 from . import reporting
+from . import recommendations
+from .conversions.actions import ConversionActionManager
 
 
 def normalize_customer_id(customer_id: str) -> str:
@@ -203,6 +205,28 @@ def handle_report(args):
             sys.exit(1)
 
 
+def handle_recommendations(args):
+    """Handle 'xw ads recs' command - fetch recommendations from API."""
+    import json
+    client = get_client(version=args.api_version)
+    customer_id = normalize_customer_id(args.customer_id)
+
+    recs = recommendations.fetch_recommendations(
+        client, customer_id,
+        types=args.types.split(',') if args.types else None,
+        limit=args.limit
+    )
+
+    if args.format == 'json':
+        print(json.dumps(recs, indent=2))
+    else:
+        print(f"\n=== Google Ads Recommendations ({len(recs)}) ===\n")
+        for rec in recs:
+            campaign = rec.get('campaign_name') or 'Account-level'
+            print(f"  {rec['type']}: {campaign}")
+        print()
+
+
 def handle_query(args):
     """Handle 'xw ads query' command."""
     client = get_client(version=args.api_version)
@@ -254,6 +278,139 @@ def handle_query(args):
         else:
             print(f"Error: Unknown format: {args.format}")
             sys.exit(1)
+
+
+def handle_conversion_list(args):
+    """Handle 'xw ads conversion list' command."""
+    import json
+    client = get_client(version=args.api_version)
+    customer_id = normalize_customer_id(args.customer_id)
+
+    manager = ConversionActionManager(client)
+    conversions = manager.list_conversions(customer_id, include_removed=False)
+
+    if args.format == 'json':
+        print(json.dumps(conversions, indent=2))
+    else:
+        # Table format
+        print(f"\n=== Conversion Actions ({len(conversions)}) ===\n")
+        for conv in conversions:
+            primary = "PRIMARY" if conv['primary_for_goal'] else "SECONDARY"
+            value = f"€{conv['default_value']:.2f}" if conv['default_value'] else "Variable"
+            print(f"  {conv['id']}: {conv['name']}")
+            print(f"    Type: {conv['type']} | Category: {conv['category']}")
+            print(f"    Status: {conv['status']} | Goal: {primary} | Value: {value}")
+            if conv.get('tag_info', {}).get('conversion_label'):
+                print(f"    Label: {conv['tag_info']['conversion_label']}")
+            print()
+
+
+def handle_conversion_create(args):
+    """Handle 'xw ads conversion create' command."""
+    client = get_client(version=args.api_version)
+    customer_id = normalize_customer_id(args.customer_id)
+
+    manager = ConversionActionManager(client)
+
+    # Determine include_in_goals based on --secondary flag
+    include_in_goals = not args.secondary
+
+    result = manager.create_conversion(
+        customer_id=customer_id,
+        name=args.name,
+        category=args.category,
+        value=args.value,
+        include_in_goals=include_in_goals
+    )
+
+    print(f"\n✓ Created conversion action: {result['name']}")
+    print(f"  Action ID: {result['action_id']}")
+    print(f"  Conversion ID: {result['conversion_id']}")
+    print(f"  Conversion Label: {result['conversion_label']}")
+    print(f"  Goal Setting: {'SECONDARY' if args.secondary else 'PRIMARY'}")
+    print()
+
+
+def handle_conversion_update(args):
+    """Handle 'xw ads conversion update' command."""
+    client = get_client(version=args.api_version)
+    customer_id = normalize_customer_id(args.customer_id)
+
+    manager = ConversionActionManager(client)
+
+    # Build updates dictionary from provided arguments
+    updates = {}
+
+    if args.name:
+        updates['name'] = args.name
+
+    if args.value is not None:
+        updates['value'] = args.value
+
+    if args.status:
+        updates['status'] = args.status
+
+    # Handle primary/secondary flags (mutually exclusive)
+    if args.primary and args.secondary:
+        print("Error: Cannot specify both --primary and --secondary")
+        sys.exit(1)
+
+    if args.primary:
+        updates['primary_for_goal'] = True
+    elif args.secondary:
+        updates['primary_for_goal'] = False
+
+    if not updates:
+        print("Error: No updates specified. Use --name, --value, --status, --primary, or --secondary")
+        sys.exit(1)
+
+    result = manager.update_conversion(
+        customer_id=customer_id,
+        conversion_id=args.conversion_id,
+        **updates
+    )
+
+    print(f"\n✓ Updated conversion {args.conversion_id}")
+    print(f"  Updated fields: {', '.join(result['updated_fields'])}")
+    print()
+
+
+def handle_conversion_remove(args):
+    """Handle 'xw ads conversion remove' command."""
+    client = get_client(version=args.api_version)
+    customer_id = normalize_customer_id(args.customer_id)
+
+    manager = ConversionActionManager(client)
+
+    result = manager.remove_conversion(
+        customer_id=customer_id,
+        conversion_id=args.conversion_id
+    )
+
+    print(f"\n✓ Removed conversion {args.conversion_id}")
+    print()
+
+
+def handle_conversion_labels(args):
+    """Handle 'xw ads conversion labels' command."""
+    import json
+    client = get_client(version=args.api_version)
+    customer_id = normalize_customer_id(args.customer_id)
+
+    manager = ConversionActionManager(client)
+    labels = manager.get_conversion_labels(customer_id, webpage_only=True)
+
+    if args.format == 'json':
+        print(json.dumps(labels, indent=2))
+    else:
+        # Table format
+        print(f"\n=== Conversion Labels for GTM ({len(labels)}) ===\n")
+        for name, info in labels.items():
+            print(f"  {name}")
+            print(f"    Conversion ID: AW-{info['conversion_id']}")
+            print(f"    Label: {info['conversion_label']}")
+            print(f"    Category: {info['category']}")
+            print()
 
 
 def main(args=None):
@@ -411,6 +568,135 @@ Common workflows:
     query_parser.add_argument('--output', help='Output file path (default: stdout)')
     query_parser.add_argument('--show-query', action='store_true', help='Show formatted query before execution')
 
+    # ========== RECOMMENDATIONS MODULE ==========
+    recs_parser = subparsers.add_parser(
+        'recs',
+        help='Fetch recommendations from Google Ads API',
+        epilog='Examples:\n'
+               '  xw ads recs --customer-id 2425288235\n'
+               '  xw ads recs --customer-id 2425288235 --format json\n'
+               '  xw ads recs --customer-id 2425288235 --types KEYWORD,CAMPAIGN_BUDGET',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    recs_parser.add_argument('--customer-id', required=True, help='Customer ID')
+    recs_parser.add_argument('--types', help='Filter by types (comma-separated)')
+    recs_parser.add_argument('--limit', type=int, default=100, help='Max recommendations (default: 100)')
+    recs_parser.add_argument('--format', choices=['text', 'json'], default='text', help='Output format')
+
+    # ========== CONVERSION MODULE ==========
+    conversion_parser = subparsers.add_parser(
+        'conversion',
+        help='Manage conversion actions',
+        epilog='Examples:\n'
+               '  # List all conversions\n'
+               '  xw ads conversion list --customer-id 2425288235\n\n'
+               '  # Create new conversion\n'
+               '  xw ads conversion create --customer-id 2425288235 --name "Form Submit" --value 50\n\n'
+               '  # Update conversion (make secondary)\n'
+               '  xw ads conversion update --customer-id 2425288235 --conversion-id 12345 --secondary\n\n'
+               '  # Get conversion labels for GTM\n'
+               '  xw ads conversion labels --customer-id 2425288235 --format json',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    conversion_subs = conversion_parser.add_subparsers(dest='command', help='Command')
+
+    # conversion list
+    conv_list_parser = conversion_subs.add_parser(
+        'list',
+        help='List all conversion actions',
+        epilog='Example:\n'
+               '  xw ads conversion list --customer-id 2425288235 --format table',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    conv_list_parser.add_argument('--customer-id', required=True, help='Customer ID (e.g., 2425288235)')
+    conv_list_parser.add_argument(
+        '--format',
+        choices=['table', 'json'],
+        default='table',
+        help='Output format: table | json - default: table'
+    )
+
+    # conversion create
+    conv_create_parser = conversion_subs.add_parser(
+        'create',
+        help='Create new conversion action',
+        epilog='Examples:\n'
+               '  # Primary conversion with default value\n'
+               '  xw ads conversion create --customer-id 2425288235 --name "Purchase" --value 100\n\n'
+               '  # Secondary conversion (not counted in goals)\n'
+               '  xw ads conversion create --customer-id 2425288235 --name "Newsletter" --secondary',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    conv_create_parser.add_argument('--customer-id', required=True, help='Customer ID')
+    conv_create_parser.add_argument('--name', required=True, help='Conversion action name')
+    conv_create_parser.add_argument(
+        '--category',
+        default='SUBMIT_LEAD_FORM',
+        help='Category: PURCHASE, SUBMIT_LEAD_FORM, SIGNUP, CONTACT, etc. (default: SUBMIT_LEAD_FORM)'
+    )
+    conv_create_parser.add_argument(
+        '--value',
+        type=float,
+        default=0,
+        help='Default conversion value (default: 0)'
+    )
+    conv_create_parser.add_argument(
+        '--secondary',
+        action='store_true',
+        help='Create as secondary conversion (not included in conversion goals)'
+    )
+
+    # conversion update
+    conv_update_parser = conversion_subs.add_parser(
+        'update',
+        help='Update existing conversion action',
+        epilog='Examples:\n'
+               '  # Update value\n'
+               '  xw ads conversion update --customer-id 2425288235 --conversion-id 12345 --value 75\n\n'
+               '  # Change to secondary conversion\n'
+               '  xw ads conversion update --customer-id 2425288235 --conversion-id 12345 --secondary\n\n'
+               '  # Pause conversion\n'
+               '  xw ads conversion update --customer-id 2425288235 --conversion-id 12345 --status PAUSED',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    conv_update_parser.add_argument('--customer-id', required=True, help='Customer ID')
+    conv_update_parser.add_argument('--conversion-id', required=True, help='Conversion action ID')
+    conv_update_parser.add_argument('--name', help='New name for conversion')
+    conv_update_parser.add_argument('--value', type=float, help='New default value')
+    conv_update_parser.add_argument('--status', choices=['ENABLED', 'PAUSED', 'REMOVED'], help='New status')
+    conv_update_parser.add_argument('--primary', action='store_true', help='Make primary (included in goals)')
+    conv_update_parser.add_argument('--secondary', action='store_true', help='Make secondary (not in goals)')
+
+    # conversion remove
+    conv_remove_parser = conversion_subs.add_parser(
+        'remove',
+        help='Remove (disable) conversion action',
+        epilog='Example:\n'
+               '  xw ads conversion remove --customer-id 2425288235 --conversion-id 12345',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    conv_remove_parser.add_argument('--customer-id', required=True, help='Customer ID')
+    conv_remove_parser.add_argument('--conversion-id', required=True, help='Conversion action ID to remove')
+
+    # conversion labels
+    conv_labels_parser = conversion_subs.add_parser(
+        'labels',
+        help='Get conversion labels for GTM integration',
+        epilog='Examples:\n'
+               '  # Table format\n'
+               '  xw ads conversion labels --customer-id 2425288235\n\n'
+               '  # JSON for automation\n'
+               '  xw ads conversion labels --customer-id 2425288235 --format json',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    conv_labels_parser.add_argument('--customer-id', required=True, help='Customer ID')
+    conv_labels_parser.add_argument(
+        '--format',
+        choices=['table', 'json'],
+        default='table',
+        help='Output format: table | json - default: table'
+    )
+
     # ========== AUTH MODULE ==========
     auth_parser = subparsers.add_parser('auth', help='Authentication operations')
     auth_subs = auth_parser.add_subparsers(dest='command', help='Command')
@@ -452,6 +738,25 @@ Common workflows:
                 query_parser.print_help()
                 sys.exit(1)
             handle_query(args)
+
+        elif args.module == 'recs':
+            handle_recommendations(args)
+
+        elif args.module == 'conversion':
+            if not args.command:
+                conversion_parser.print_help()
+                sys.exit(1)
+
+            if args.command == 'list':
+                handle_conversion_list(args)
+            elif args.command == 'create':
+                handle_conversion_create(args)
+            elif args.command == 'update':
+                handle_conversion_update(args)
+            elif args.command == 'remove':
+                handle_conversion_remove(args)
+            elif args.command == 'labels':
+                handle_conversion_labels(args)
 
         elif args.module == 'auth':
             if not args.command:

@@ -59,3 +59,8 @@ class APIError(AdsError):
 class GoogleAdsError(AdsError):
     """Google Ads API error."""
     exit_code = 1
+
+
+class RecommendationNotFoundError(AdsError):
+    """Recommendation not found."""
+    exit_code = 4
