@@ -127,22 +127,38 @@ def create_search_campaign(
     # Resolve language targets
     resolved_languages = _resolve_languages(languages)
 
-    # Resolve geo target type enum
-    geo_type_map = {
-        "LOCATION_OF_PRESENCE": "LOCATION_OF_PRESENCE",
-        "AREA_OF_INTEREST": "AREA_OF_INTEREST",
-        "PRESENCE_OR_INTEREST": "PRESENCE_OR_INTEREST",
+    # Validate geo target type
+    valid_geo_types = {
+        "LOCATION_OF_PRESENCE",
+        "AREA_OF_INTEREST",
+        "PRESENCE_OR_INTEREST",
     }
-    if geo_target_type not in geo_type_map:
+    if geo_target_type not in valid_geo_types:
         raise ValidationError(
             f"Invalid geo_target_type: {geo_target_type}. "
-            f"Must be one of: {list(geo_type_map.keys())}"
+            f"Must be one of: {list(valid_geo_types)}"
         )
 
     try:
         mutate_service = client.get_service("GoogleAdsService")
         budget_service = client.get_service("CampaignBudgetService")
         campaign_service = client.get_service("CampaignService")
+        bidding_strategy_service = client.get_service("BiddingStrategyService")
+
+        # If Target CPA is specified, create portfolio bidding strategy FIRST
+        # (must be done separately, cannot use temp IDs in batch)
+        bidding_strategy_resource = None
+        if target_cpa_eur is not None:
+            bidding_strategy_operation = client.get_type("BiddingStrategyOperation")
+            bidding_strategy = bidding_strategy_operation.create
+            bidding_strategy.name = f"{name} - Target CPA €{int(target_cpa_eur)}"
+            bidding_strategy.target_cpa.target_cpa_micros = int(target_cpa_eur * 1_000_000)
+
+            bidding_response = bidding_strategy_service.mutate_bidding_strategies(
+                customer_id=customer_id,
+                operations=[bidding_strategy_operation]
+            )
+            bidding_strategy_resource = bidding_response.results[0].resource_name
 
         operations = []
 
@@ -157,6 +173,7 @@ def create_search_campaign(
         operations.append(budget_op)
 
         # Operation 2: Create Search Campaign
+        # Pattern from working script: create_search_campaign_complete.py
         campaign_op = client.get_type("MutateOperation")
         campaign = campaign_op.campaign_operation.create
         campaign.resource_name = campaign_service.campaign_path(customer_id, "-2")
@@ -170,22 +187,40 @@ def create_search_campaign(
         else:
             campaign.status = client.enums.CampaignStatusEnum.PAUSED
 
-        # Geo target type setting (CRITICAL for Day Tours)
-        geo_enum = getattr(client.enums.GeoTargetingTypeEnum, geo_target_type)
-        campaign.geo_target_type_setting.positive_geo_target_type = geo_enum
+        # CRITICAL: Set geo targeting type using PositiveGeoTargetTypeEnum
+        # (verified from working production campaigns)
+        if geo_target_type == "LOCATION_OF_PRESENCE":
+            campaign.geo_target_type_setting.positive_geo_target_type = (
+                client.enums.PositiveGeoTargetTypeEnum.PRESENCE  # Value: 7
+            )
+        elif geo_target_type == "AREA_OF_INTEREST":
+            campaign.geo_target_type_setting.positive_geo_target_type = (
+                client.enums.PositiveGeoTargetTypeEnum.SEARCH_INTEREST  # Value: 6
+            )
+        else:  # PRESENCE_OR_INTEREST
+            campaign.geo_target_type_setting.positive_geo_target_type = (
+                client.enums.PositiveGeoTargetTypeEnum.PRESENCE_OR_INTEREST  # Value: 5
+            )
 
-        # Bidding Strategy
-        if target_cpa_eur is not None:
-            campaign.maximize_conversions.target_cpa_micros = int(target_cpa_eur * 1_000_000)
+        # Bidding Strategy: Manual CPC or Portfolio Target CPA
+        # Target CPA requires a portfolio bidding strategy (created above)
+        if bidding_strategy_resource is not None:
+            # Use portfolio bidding strategy for Target CPA
+            campaign.bidding_strategy = bidding_strategy_resource
         else:
-            # Maximize Conversions without target (let Google optimize)
-            campaign.maximize_conversions.target_cpa_micros = 0
+            # Manual CPC with enhanced CPC (simple, works without conversion history)
+            campaign.manual_cpc.enhanced_cpc_enabled = True
 
-        # Network Settings: Search only, no Display Network
+        # Network Settings (verified from working script)
         campaign.network_settings.target_google_search = True
         campaign.network_settings.target_search_network = True
         campaign.network_settings.target_content_network = False
-        campaign.network_settings.target_partner_search_network = True
+        campaign.network_settings.target_partner_search_network = False
+
+        # EU advertising compliance (required field for EU accounts) - MUST be enum!
+        campaign.contains_eu_political_advertising = (
+            client.enums.EuPoliticalAdvertisingStatusEnum.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING
+        )
 
         operations.append(campaign_op)
 
@@ -219,7 +254,7 @@ def create_search_campaign(
         budget_id = budget_resource.split("/")[-1]
         campaign_id = campaign_resource.split("/")[-1]
 
-        return {
+        result = {
             'resource_name': campaign_resource,
             'campaign_id': campaign_id,
             'budget_id': budget_id,
@@ -231,6 +266,16 @@ def create_search_campaign(
             'geo_target_type': geo_target_type,
             'url': f"https://ads.google.com/aw/overview?campaignId={campaign_id}&__e={customer_id}"
         }
+
+        # Include bidding strategy info if portfolio strategy was created
+        if bidding_strategy_resource is not None:
+            result['bidding_strategy_resource'] = bidding_strategy_resource
+            result['bidding_strategy_id'] = bidding_strategy_resource.split("/")[-1]
+            result['bidding_type'] = 'TARGET_CPA'
+        else:
+            result['bidding_type'] = 'MANUAL_CPC'
+
+        return result
 
     except GoogleAdsException as ex:
         error = ex.failure.errors[0] if ex.failure.errors else None

@@ -95,8 +95,12 @@ class TestCampaignCreation:
         client.enums.AdvertisingChannelTypeEnum.SEARCH = "SEARCH"
         client.enums.CampaignStatusEnum.PAUSED = "PAUSED"
         client.enums.CampaignStatusEnum.ENABLED = "ENABLED"
-        client.enums.GeoTargetingTypeEnum.LOCATION_OF_PRESENCE = "LOCATION_OF_PRESENCE"
-        client.enums.GeoTargetingTypeEnum.AREA_OF_INTEREST = "AREA_OF_INTEREST"
+        # PositiveGeoTargetTypeEnum is the correct enum for campaign geo targeting
+        client.enums.PositiveGeoTargetTypeEnum = {
+            "PRESENCE": 7,  # LOCATION_OF_PRESENCE
+            "SEARCH_INTEREST": 6,  # AREA_OF_INTEREST
+            "PRESENCE_OR_INTEREST": 5,
+        }
 
         # Mock type creation
         mock_op = Mock()

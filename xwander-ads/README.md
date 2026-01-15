@@ -11,6 +11,13 @@ Google Ads API integration plugin for Xwander Platform - Performance Max campaig
   - Audience signals management
   - Budget operations
 
+- **Search Campaign Management**
+  - Create campaigns with budget and bid strategy
+  - Geo-targeting (location of presence, radius, list)
+  - Language targeting
+  - Device bid adjustments (mobile, desktop, tablet)
+  - CPA bidding strategy support
+
 - **Multi-Version API Support**
   - v20 (default, stable)
   - v21 (current)
@@ -37,23 +44,35 @@ pip install -e .
 xw ads auth test
 ```
 
-### List Performance Max Campaigns
+### Performance Max Campaigns
 
 ```bash
+# List PMax campaigns
 xw ads pmax list --customer-id 2425288235 --campaigns
+
+# Manage search themes
+xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 list
+xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 add --theme "lapland summer tours"
 ```
 
-### Manage Search Themes
+### Search Campaigns
 
 ```bash
-# List current themes
-xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 list
+# List search campaigns
+xw ads search list --customer-id 2425288235
 
-# Add single theme
-xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 add --theme "lapland summer tours"
+# Create day tours campaign
+xw ads search create --customer-id 2425288235 \
+  --name "Search | Day Tours | Ivalo" \
+  --budget 50 \
+  --target-cpa 40 \
+  --dry-run
 
-# Bulk add from file
-xw ads pmax signals --customer-id 2425288235 --asset-group-id 6655152002 bulk --file themes.txt
+# Set device bid adjustments
+xw ads search adjust-devices --customer-id 2425288235 \
+  --campaign-id 23458341084 \
+  --mobile +50 \
+  --desktop -30
 ```
 
 ## Documentation
@@ -144,6 +163,30 @@ xw ads pmax signals --customer-id ID --asset-group-id AGID {list|add|bulk|remove
   --theme TEXT          # For add action
   --file PATH           # For bulk action
   --resource-name RN    # For remove action
+```
+
+### Search Campaigns
+
+```bash
+# List search campaigns
+xw ads search list --customer-id ID [--campaign-id CID]
+
+# Create campaign
+xw ads search create --customer-id ID \
+  --name TEXT \
+  --budget AMOUNT \
+  --target-cpa CPA_BID \
+  --geo-type {LOCATION_OF_PRESENCE|RADIUS|LOCATION_LIST} \
+  --geo-targets LOCATION1,LOCATION2 \
+  --languages EN,DE,FR \
+  [--dry-run]
+
+# Set device bid adjustments
+xw ads search adjust-devices --customer-id ID \
+  --campaign-id CID \
+  [--mobile ADJUSTMENT] \
+  [--desktop ADJUSTMENT] \
+  [--tablet ADJUSTMENT]
 ```
 
 ### Authentication
