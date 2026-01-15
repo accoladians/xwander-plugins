@@ -40,6 +40,13 @@ DAY_TOURS_DEVICE_MODIFIERS = {
     'TABLET': 1.0,    # baseline
 }
 
+# Recommended bid modifiers for Multiday packages
+MULTIDAY_DEVICE_MODIFIERS = {
+    'MOBILE': 1.0,    # baseline (long research cycle)
+    'DESKTOP': 1.2,   # +20% (serious bookers research on desktop)
+    'TABLET': 1.0,    # baseline
+}
+
 
 def set_device_bid_adjustments(
     client: GoogleAdsClient,

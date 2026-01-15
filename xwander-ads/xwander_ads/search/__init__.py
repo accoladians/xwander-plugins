@@ -59,7 +59,11 @@ from .adjustments import (
     bulk_update_attributions,
     DEVICE_TYPES,
     DAY_TOURS_DEVICE_MODIFIERS,
+    MULTIDAY_DEVICE_MODIFIERS,
 )
+
+# Convenient alias for attribution updates
+update_attribution_window = update_conversion_attribution
 
 __all__ = [
     # Campaign operations
@@ -71,6 +75,7 @@ __all__ = [
     # Adjustment operations
     'set_device_bid_adjustments',
     'update_conversion_attribution',
+    'update_attribution_window',  # alias for update_conversion_attribution
     'link_conversion_actions',
     'get_device_performance',
     'bulk_update_attributions',
@@ -81,4 +86,5 @@ __all__ = [
     'TOURIST_LANGUAGES',
     'DEVICE_TYPES',
     'DAY_TOURS_DEVICE_MODIFIERS',
+    'MULTIDAY_DEVICE_MODIFIERS',
 ]
