@@ -93,6 +93,15 @@ from .rsa import (
     RSA_VALIDATION,
 )
 
+from .keywords import (
+    add_keyword,
+    list_keywords,
+    get_keyword,
+    bulk_add_keywords,
+    remove_keyword,
+    KeywordNotFoundError,
+)
+
 # Convenient alias for attribution updates
 update_attribution_window = update_conversion_attribution
 
@@ -124,6 +133,14 @@ __all__ = [
     'get_rsa',
     'bulk_create_rsas',
     'validate_rsa_config',
+
+    # Keyword operations
+    'add_keyword',
+    'list_keywords',
+    'get_keyword',
+    'bulk_add_keywords',
+    'remove_keyword',
+    'KeywordNotFoundError',
 
     # Constants
     'GEO_TARGETS',
