@@ -1,0 +1,30 @@
+{
+  "name": "xwander-airtable",
+  "version": "1.0.0",
+  "description": "AI-first Airtable toolkit for Claude Code. Complements Airtable MCP with rate limiting, formula builder, batch operations, schema caching, and sync utilities.",
+  "author": {
+    "name": "Xwander Growth Team",
+    "email": "joni@accolade.fi"
+  },
+  "homepage": "https://github.com/accoladians/xwander-plugins",
+  "repository": "https://github.com/accoladians/xwander-plugins",
+  "license": "Proprietary",
+  "keywords": ["airtable", "api", "batch", "formula", "sync", "calendar", "crm"],
+  "commands": "./commands/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": "./hooks/hooks.json",
+  "tools": ["Bash", "Read", "Write", "Edit"],
+  "dependencies": {
+    "python": ["httpx", "pydantic", "python-dotenv"],
+    "mcp": ["airtable-mcp-server"]
+  },
+  "configuration": {
+    "token_env": "AIRTABLE_TOKEN",
+    "default_base": "app5ctfBdvOxmTpOM",
+    "rate_limit": 5,
+    "batch_size": 10,
+    "cache_ttl": 300
+  },
+  "tags": ["airtable", "database", "calendar", "travel", "scheduling"]
+}
