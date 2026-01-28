@@ -1,0 +1,700 @@
+{
+  "api_version": "v0",
+  "base_url": "https://api.airtable.com/v0",
+  "meta_url": "https://api.airtable.com/v0/meta",
+  "oauth_url": "https://airtable.com/oauth2/v1",
+  "authentication": {
+    "type": "Bearer",
+    "header": "Authorization: Bearer {token}",
+    "token_types": [
+      {
+        "name": "Personal Access Token (PAT)",
+        "description": "Long-lived tokens for development and personal automation.",
+        "prefix": "pat",
+        "creation_url": "https://airtable.com/create/tokens",
+        "expiration": "Never (unless revoked)"
+      },
+      {
+        "name": "OAuth Access Token",
+        "description": "Short-lived tokens for third-party integrations.",
+        "prefix": "oauth",
+        "flow": "Authorization Code",
+        "expiration": "60 minutes",
+        "refresh_token": "Long-lived (rotation policy dependent)"
+      }
+    ],
+    "scopes": [
+      {"name": "data.records:read", "description": "Read records from tables"},
+      {"name": "data.records:write", "description": "Create, update, delete records"},
+      {"name": "data.recordComments:read", "description": "Read record comments"},
+      {"name": "data.recordComments:write", "description": "Create, update, delete comments"},
+      {"name": "schema.bases:read", "description": "Read base schema (tables, fields, views)"},
+      {"name": "schema.bases:write", "description": "Create/modify tables and fields"},
+      {"name": "webhook:manage", "description": "Create and manage webhooks"},
+      {"name": "user.email:read", "description": "Read user email"}
+    ],
+    "oauth_endpoints": {
+      "authorize": "https://airtable.com/oauth2/v1/authorize",
+      "token": "https://airtable.com/oauth2/v1/token",
+      "authorize_params": ["client_id", "redirect_uri", "response_type=code", "scope", "state"],
+      "token_grant_types": ["authorization_code", "refresh_token"]
+    }
+  },
+  "rate_limits": {
+    "per_base": {
+      "requests_per_second": 5,
+      "description": "Hard limit per base, returns 429"
+    },
+    "per_token": {
+      "requests_per_second": 50,
+      "description": "Across all bases for single token"
+    },
+    "batch_size": {
+      "create": 10,
+      "update": 10,
+      "delete": 10
+    },
+    "page_size": {
+      "max": 100,
+      "default": 100
+    },
+    "request_body_max_kb": 100,
+    "retry_header": "X-Airtable-Retry-After"
+  },
+  "endpoints": {
+    "records": [
+      {
+        "name": "List Records",
+        "method": "GET",
+        "path": "/{baseId}/{tableIdOrName}",
+        "description": "List records in a table with filtering, sorting, and pagination.",
+        "batch_size": 100,
+        "parameters": {
+          "query": [
+            {"name": "fields[]", "type": "array[string]", "description": "Field names or IDs to retrieve. Multiple allowed."},
+            {"name": "filterByFormula", "type": "string", "description": "Airtable formula to filter records. URL encode required."},
+            {"name": "maxRecords", "type": "integer", "description": "Total number of records to return across all pages."},
+            {"name": "pageSize", "type": "integer", "description": "Records per page (1-100). Default 100."},
+            {"name": "sort[0][field]", "type": "string", "description": "Field name to sort by."},
+            {"name": "sort[0][direction]", "type": "string", "enum": ["asc", "desc"], "description": "Sort direction."},
+            {"name": "view", "type": "string", "description": "View ID or name to scope results."},
+            {"name": "cellFormat", "type": "string", "enum": ["json", "string"], "description": "Return format. 'string' for display-friendly."},
+            {"name": "timeZone", "type": "string", "description": "Timezone for date calculations (e.g., 'Europe/Helsinki')."},
+            {"name": "userLocale", "type": "string", "description": "Locale for formatting (e.g., 'fi')."},
+            {"name": "returnFieldsByFieldId", "type": "boolean", "description": "Use field IDs as keys instead of names."},
+            {"name": "offset", "type": "string", "description": "Pagination cursor from previous response."}
+          ]
+        },
+        "response": {
+          "records": [{"id": "recXXX", "createdTime": "ISO8601", "fields": {}}],
+          "offset": "string (only if more pages)"
+        },
+        "example_request": "GET /v0/appXXX/Tasks?fields%5B%5D=Name&filterByFormula=%7BStatus%7D%3D%27Todo%27",
+        "example_response": {"records": [{"id": "recABC", "createdTime": "2023-10-27T10:00:00.000Z", "fields": {"Name": "Task 1"}}]}
+      },
+      {
+        "name": "Get Record",
+        "method": "GET",
+        "path": "/{baseId}/{tableIdOrName}/{recordId}",
+        "description": "Retrieve a single record by ID.",
+        "parameters": {
+          "query": [
+            {"name": "returnFieldsByFieldId", "type": "boolean"}
+          ]
+        },
+        "response": {"id": "recXXX", "createdTime": "ISO8601", "fields": {}}
+      },
+      {
+        "name": "Create Records",
+        "method": "POST",
+        "path": "/{baseId}/{tableIdOrName}",
+        "description": "Create up to 10 records in a single request.",
+        "batch_size": 10,
+        "parameters": {
+          "body": {
+            "records": {
+              "type": "array",
+              "max_items": 10,
+              "items": {"fields": {"type": "object"}}
+            },
+            "typecast": {"type": "boolean", "default": false, "description": "Auto-convert string values to correct types."},
+            "returnFieldsByFieldId": {"type": "boolean", "default": false}
+          }
+        },
+        "example_request": {
+          "records": [
+            {"fields": {"Name": "New task", "Status": "Todo"}},
+            {"fields": {"Name": "Another task", "Status": "In Progress"}}
+          ],
+          "typecast": true
+        },
+        "example_response": {
+          "records": [
+            {"id": "recNEW1", "createdTime": "2023-10-28T10:00:00.000Z", "fields": {"Name": "New task", "Status": "Todo"}}
+          ]
+        }
+      },
+      {
+        "name": "Update Records (Partial)",
+        "method": "PATCH",
+        "path": "/{baseId}/{tableIdOrName}",
+        "description": "Update up to 10 records. Only specified fields are modified.",
+        "batch_size": 10,
+        "parameters": {
+          "body": {
+            "records": {
+              "type": "array",
+              "max_items": 10,
+              "items": {"id": "string (required)", "fields": {"type": "object"}}
+            },
+            "performUpsert": {
+              "type": "object",
+              "description": "Enable upsert mode",
+              "properties": {
+                "fieldsToMergeOn": {"type": "array[string]", "description": "Fields to match for update vs create"}
+              }
+            },
+            "typecast": {"type": "boolean"},
+            "returnFieldsByFieldId": {"type": "boolean"}
+          }
+        },
+        "example_request": {
+          "records": [{"id": "recXXX", "fields": {"Status": "Done"}}],
+          "typecast": true
+        },
+        "example_upsert_request": {
+          "records": [{"fields": {"ExternalID": "EXT-001", "Status": "Done"}}],
+          "performUpsert": {"fieldsToMergeOn": ["ExternalID"]},
+          "typecast": true
+        }
+      },
+      {
+        "name": "Update Records (Destructive)",
+        "method": "PUT",
+        "path": "/{baseId}/{tableIdOrName}",
+        "description": "Replace records completely. Unspecified fields become empty.",
+        "batch_size": 10,
+        "parameters": {
+          "body": {
+            "records": {
+              "type": "array",
+              "max_items": 10,
+              "items": {"id": "string (required)", "fields": {"type": "object"}}
+            },
+            "typecast": {"type": "boolean"},
+            "returnFieldsByFieldId": {"type": "boolean"}
+          }
+        }
+      },
+      {
+        "name": "Delete Records",
+        "method": "DELETE",
+        "path": "/{baseId}/{tableIdOrName}",
+        "description": "Delete up to 10 records.",
+        "batch_size": 10,
+        "parameters": {
+          "query": [
+            {"name": "records[]", "type": "array[string]", "max_items": 10, "description": "Record IDs to delete"}
+          ]
+        },
+        "example_request": "DELETE /v0/appXXX/Tasks?records[]=recABC&records[]=recDEF",
+        "response": {
+          "records": [{"id": "recABC", "deleted": true}]
+        }
+      }
+    ],
+    "metadata": [
+      {
+        "name": "List Bases",
+        "method": "GET",
+        "path": "/meta/bases",
+        "description": "List all bases accessible to the token.",
+        "parameters": {
+          "query": [
+            {"name": "offset", "type": "string", "description": "Pagination cursor"}
+          ]
+        },
+        "response": {
+          "bases": [{"id": "appXXX", "name": "My Base", "permissionLevel": "create"}],
+          "offset": "string (if more)"
+        }
+      },
+      {
+        "name": "Get Base Schema",
+        "method": "GET",
+        "path": "/meta/bases/{baseId}/tables",
+        "description": "Get complete schema including tables, fields, views.",
+        "response": {
+          "tables": [{
+            "id": "tblXXX",
+            "name": "Tasks",
+            "primaryFieldId": "fldXXX",
+            "fields": [{"id": "fldXXX", "name": "Name", "type": "singleLineText"}],
+            "views": [{"id": "viwXXX", "name": "Grid view", "type": "grid"}]
+          }]
+        }
+      },
+      {
+        "name": "Create Table",
+        "method": "POST",
+        "path": "/meta/bases/{baseId}/tables",
+        "description": "Create a new table in the base.",
+        "parameters": {
+          "body": {
+            "name": {"type": "string", "required": true},
+            "description": {"type": "string"},
+            "fields": {"type": "array", "items": {"name": "string", "type": "string", "options": "object"}}
+          }
+        }
+      },
+      {
+        "name": "Update Table",
+        "method": "PATCH",
+        "path": "/meta/bases/{baseId}/tables/{tableId}",
+        "description": "Update table name or description.",
+        "parameters": {
+          "body": {
+            "name": {"type": "string"},
+            "description": {"type": "string"}
+          }
+        }
+      },
+      {
+        "name": "Create Field",
+        "method": "POST",
+        "path": "/meta/bases/{baseId}/tables/{tableId}/fields",
+        "description": "Add a new field to a table.",
+        "parameters": {
+          "body": {
+            "name": {"type": "string", "required": true},
+            "type": {"type": "string", "required": true},
+            "description": {"type": "string"},
+            "options": {"type": "object", "description": "Field-type specific options"}
+          }
+        }
+      },
+      {
+        "name": "Update Field",
+        "method": "PATCH",
+        "path": "/meta/bases/{baseId}/tables/{tableId}/fields/{fieldId}",
+        "description": "Update field name, description, or options.",
+        "parameters": {
+          "body": {
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "options": {"type": "object"}
+          }
+        }
+      }
+    ],
+    "webhooks": [
+      {
+        "name": "List Webhooks",
+        "method": "GET",
+        "path": "/bases/{baseId}/webhooks",
+        "description": "List all webhooks for a base."
+      },
+      {
+        "name": "Create Webhook",
+        "method": "POST",
+        "path": "/bases/{baseId}/webhooks",
+        "description": "Create a new webhook to receive change notifications.",
+        "parameters": {
+          "body": {
+            "notificationUrl": {"type": "string", "description": "URL to receive POST notifications"},
+            "specification": {
+              "type": "object",
+              "properties": {
+                "options": {
+                  "filters": {
+                    "dataTypes": ["tableData"],
+                    "recordChangeScope": "tblXXX (optional table filter)",
+                    "watchDataInFieldIds": ["fldXXX"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "response": {
+          "id": "wbhXXX",
+          "macSecretBase64": "base64 for HMAC verification",
+          "expirationTime": "ISO8601 (7 days from creation)"
+        }
+      },
+      {
+        "name": "Get Webhook Payloads",
+        "method": "GET",
+        "path": "/bases/{baseId}/webhooks/{webhookId}/payloads",
+        "description": "Get queued payloads. Cursor-based pagination.",
+        "parameters": {
+          "query": [
+            {"name": "cursor", "type": "integer", "description": "Last processed baseTransactionNumber"}
+          ]
+        },
+        "response": {
+          "payloads": [{
+            "timestamp": "ISO8601",
+            "baseTransactionNumber": 123,
+            "actionMetadata": {"source": "client", "sourceMetadata": {}},
+            "changedTablesById": {
+              "tblXXX": {
+                "createdRecordsById": {},
+                "changedRecordsById": {},
+                "destroyedRecordIds": []
+              }
+            }
+          }],
+          "cursor": 124,
+          "mightHaveMore": true
+        }
+      },
+      {
+        "name": "Refresh Webhook",
+        "method": "POST",
+        "path": "/bases/{baseId}/webhooks/{webhookId}/refresh",
+        "description": "Extend webhook expiration by 7 days.",
+        "response": {
+          "expirationTime": "ISO8601"
+        }
+      },
+      {
+        "name": "Delete Webhook",
+        "method": "DELETE",
+        "path": "/bases/{baseId}/webhooks/{webhookId}",
+        "description": "Delete a webhook."
+      }
+    ]
+  },
+  "field_types": {
+    "writable": {
+      "singleLineText": {
+        "api_type": "singleLineText",
+        "read_example": "Project Alpha",
+        "write_example": "Project Beta",
+        "notes": "Basic string, max 100,000 chars"
+      },
+      "multilineText": {
+        "api_type": "multilineText",
+        "read_example": "Line 1\nLine 2",
+        "write_example": "Line 1\nLine 2",
+        "notes": "String with newlines, supports basic markdown"
+      },
+      "richText": {
+        "api_type": "richText",
+        "read_example": "**Bold** and *italic*",
+        "write_example": "**Bold** and *italic*",
+        "notes": "Full markdown support"
+      },
+      "number": {
+        "api_type": "number",
+        "read_example": 42.5,
+        "write_example": 42.5,
+        "notes": "Float or integer, precision from field config"
+      },
+      "currency": {
+        "api_type": "currency",
+        "read_example": 19.99,
+        "write_example": 25.00,
+        "notes": "Number type, symbol from field config"
+      },
+      "percent": {
+        "api_type": "percent",
+        "read_example": 0.5,
+        "write_example": 0.75,
+        "notes": "0.5 = 50%, stored as decimal"
+      },
+      "checkbox": {
+        "api_type": "checkbox",
+        "read_example": true,
+        "write_example": true,
+        "notes": "Boolean, null/false both clear"
+      },
+      "singleSelect": {
+        "api_type": "singleSelect",
+        "read_example": "Todo",
+        "write_example": "Done",
+        "notes": "Must match option name exactly (or use typecast)"
+      },
+      "multipleSelects": {
+        "api_type": "multipleSelects",
+        "read_example": ["Tag A", "Tag B"],
+        "write_example": ["Tag B", "Tag C"],
+        "notes": "Array of option names"
+      },
+      "date": {
+        "api_type": "date",
+        "read_example": "2023-10-27",
+        "write_example": "2023-10-28",
+        "notes": "ISO 8601 YYYY-MM-DD"
+      },
+      "dateTime": {
+        "api_type": "dateTime",
+        "read_example": "2023-10-27T14:00:00.000Z",
+        "write_example": "2023-10-27T15:30:00.000Z",
+        "notes": "ISO 8601 with time, UTC recommended"
+      },
+      "duration": {
+        "api_type": "duration",
+        "read_example": 3600,
+        "write_example": 7200,
+        "notes": "Integer in seconds"
+      },
+      "rating": {
+        "api_type": "rating",
+        "read_example": 4,
+        "write_example": 5,
+        "notes": "Integer 1 to max (usually 5 or 10)"
+      },
+      "multipleRecordLinks": {
+        "api_type": "multipleRecordLinks",
+        "read_example": ["rec1234567890", "rec0987654321"],
+        "write_example": ["rec1234567890"],
+        "notes": "Array of record IDs only, not names"
+      },
+      "singleCollaborator": {
+        "api_type": "singleCollaborator",
+        "read_example": {"id": "usrXXX", "email": "user@example.com", "name": "John Doe"},
+        "write_example": {"email": "user@example.com"},
+        "notes": "Write by email (easiest) or ID"
+      },
+      "multipleCollaborators": {
+        "api_type": "multipleCollaborators",
+        "read_example": [{"id": "usrXXX", "email": "a@b.com"}],
+        "write_example": [{"email": "a@b.com"}, {"email": "c@d.com"}],
+        "notes": "Array of collaborator objects"
+      },
+      "multipleAttachments": {
+        "api_type": "multipleAttachments",
+        "read_example": [{"id": "attXXX", "url": "https://...", "filename": "doc.pdf", "size": 12345, "type": "application/pdf"}],
+        "write_example": [{"url": "https://example.com/file.pdf"}],
+        "notes": "Write with public URL, filename optional"
+      },
+      "phoneNumber": {
+        "api_type": "phoneNumber",
+        "read_example": "(555) 123-4567",
+        "write_example": "+15551234567",
+        "notes": "String, any format accepted"
+      },
+      "email": {
+        "api_type": "email",
+        "read_example": "user@example.com",
+        "write_example": "new@example.com",
+        "notes": "String, validated as email"
+      },
+      "url": {
+        "api_type": "url",
+        "read_example": "https://example.com/page",
+        "write_example": "https://google.com",
+        "notes": "String, validated as URL"
+      },
+      "barcode": {
+        "api_type": "barcode",
+        "read_example": {"text": "12345", "type": "ean8"},
+        "write_example": {"text": "12345"},
+        "notes": "Object with text, type optional"
+      }
+    },
+    "readonly": {
+      "formula": {
+        "api_type": "formula",
+        "read_example": "Calculated Result",
+        "notes": "Computed from formula, can be string/number/array"
+      },
+      "rollup": {
+        "api_type": "rollup",
+        "read_example": [10, 20, 30],
+        "notes": "Aggregated values from linked records"
+      },
+      "lookup": {
+        "api_type": "lookup",
+        "read_example": ["Value 1", "Value 2"],
+        "notes": "Array of values from linked records"
+      },
+      "count": {
+        "api_type": "count",
+        "read_example": 5,
+        "notes": "Integer count of linked records"
+      },
+      "createdTime": {
+        "api_type": "createdTime",
+        "read_example": "2023-10-27T10:00:00.000Z",
+        "notes": "Auto-generated ISO 8601"
+      },
+      "lastModifiedTime": {
+        "api_type": "lastModifiedTime",
+        "read_example": "2023-10-28T10:00:00.000Z",
+        "notes": "Auto-updated ISO 8601"
+      },
+      "createdBy": {
+        "api_type": "createdBy",
+        "read_example": {"id": "usrXXX", "email": "creator@example.com", "name": "Creator"},
+        "notes": "User who created the record"
+      },
+      "lastModifiedBy": {
+        "api_type": "lastModifiedBy",
+        "read_example": {"id": "usrXXX", "email": "editor@example.com", "name": "Editor"},
+        "notes": "User who last modified"
+      },
+      "autoNumber": {
+        "api_type": "autoNumber",
+        "read_example": 1,
+        "notes": "Auto-incrementing integer"
+      },
+      "button": {
+        "api_type": "button",
+        "read_example": {"label": "Open", "url": "https://..."},
+        "notes": "UI button, not actionable via API"
+      }
+    }
+  },
+  "formula_functions": {
+    "text": ["FIND", "SEARCH", "LOWER", "UPPER", "CONCATENATE", "LEFT", "RIGHT", "MID", "LEN", "TRIM", "SUBSTITUTE", "REGEX_MATCH", "REGEX_EXTRACT", "REGEX_REPLACE", "ENCODE_URL_COMPONENT"],
+    "logical": ["IF", "AND", "OR", "NOT", "XOR", "BLANK", "ERROR", "ISERROR", "SWITCH"],
+    "numeric": ["SUM", "AVERAGE", "MIN", "MAX", "ROUND", "ROUNDUP", "ROUNDDOWN", "CEILING", "FLOOR", "ABS", "SQRT", "POWER", "MOD", "INT", "VALUE", "LOG", "EXP"],
+    "date": ["TODAY", "NOW", "DATEADD", "DATETIME_DIFF", "DATETIME_FORMAT", "DATETIME_PARSE", "IS_AFTER", "IS_BEFORE", "IS_SAME", "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND", "WEEKDAY", "WEEKNUM", "WORKDAY", "WORKDAY_DIFF", "SET_LOCALE", "SET_TIMEZONE"],
+    "array": ["ARRAYJOIN", "ARRAYUNIQUE", "ARRAYCOMPACT", "ARRAYFLATTEN", "ARRAYSLICE"],
+    "record": ["RECORD_ID", "CREATED_TIME", "LAST_MODIFIED_TIME"]
+  },
+  "formula_examples": {
+    "equals": "{Status} = 'Active'",
+    "not_equals": "{Status} != 'Done'",
+    "contains": "FIND('keyword', {Name}) > 0",
+    "contains_case_insensitive": "FIND('keyword', LOWER({Name})) > 0",
+    "starts_with": "LEFT({Code}, 3) = 'PRJ'",
+    "ends_with": "RIGHT({Name}, 4) = '.pdf'",
+    "is_blank": "{Field} = BLANK()",
+    "is_not_blank": "{Field} != BLANK()",
+    "date_future": "IS_AFTER({Due}, TODAY())",
+    "date_past": "IS_BEFORE({Due}, TODAY())",
+    "date_range": "AND({Due} >= TODAY(), {Due} < DATEADD(TODAY(), 7, 'days'))",
+    "checkbox_checked": "{Done} = TRUE()",
+    "multiple_conditions": "AND({Status} = 'Active', {Priority} = 'High', NOT({Archived}))",
+    "any_of_values": "OR({Type} = 'A', {Type} = 'B', {Type} = 'C')",
+    "number_range": "AND({Price} >= 100, {Price} <= 500)",
+    "regex_match": "REGEX_MATCH({Email}, '.*@company\\\\.com$')"
+  },
+  "error_codes": [
+    {"code": 400, "type": "BAD_REQUEST", "description": "Invalid request format", "action": "Check payload structure"},
+    {"code": 401, "type": "AUTHENTICATION_REQUIRED", "description": "Invalid or missing token", "action": "Verify token"},
+    {"code": 402, "type": "PAYMENT_REQUIRED", "description": "Feature requires plan upgrade", "action": "Check plan limits"},
+    {"code": 403, "type": "NOT_AUTHORIZED", "description": "Insufficient permissions", "action": "Check token scopes"},
+    {"code": 404, "type": "NOT_FOUND", "description": "Resource doesn't exist", "action": "Verify base/table/record IDs"},
+    {"code": 413, "type": "REQUEST_ENTITY_TOO_LARGE", "description": "Payload exceeds 100KB", "action": "Reduce batch size"},
+    {"code": 422, "type": "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND", "description": "Invalid field/table reference", "action": "Check schema, enable typecast"},
+    {"code": 422, "type": "INVALID_VALUE_FOR_COLUMN", "description": "Data type mismatch", "action": "Enable typecast or fix type"},
+    {"code": 422, "type": "UNKNOWN_FIELD_NAME", "description": "Field doesn't exist", "action": "Check field names in schema"},
+    {"code": 429, "type": "TOO_MANY_REQUESTS", "description": "Rate limit exceeded", "action": "Wait X-Airtable-Retry-After seconds"},
+    {"code": 500, "type": "SERVER_ERROR", "description": "Airtable internal error", "action": "Retry with exponential backoff"},
+    {"code": 502, "type": "BAD_GATEWAY", "description": "Server communication error", "action": "Retry"},
+    {"code": 503, "type": "SERVICE_UNAVAILABLE", "description": "Maintenance", "action": "Wait and retry"}
+  ],
+  "mcp_tool_recommendations": {
+    "priority_tools": [
+      {
+        "name": "airtable_get_schema",
+        "description": "Get base schema to understand tables, fields, and valid options. MUST be called first.",
+        "priority": "P0",
+        "parameters": {
+          "base_id": {"type": "string", "required": true},
+          "include_views": {"type": "boolean", "default": false, "description": "Include views in output (increases tokens)"}
+        },
+        "output_optimization": "Return compact JSON: tables -> fields (name, id, type, options for selects)"
+      },
+      {
+        "name": "airtable_list_records",
+        "description": "Query records with filtering and field selection. Server handles pagination.",
+        "priority": "P0",
+        "parameters": {
+          "base_id": {"type": "string", "required": true},
+          "table_id": {"type": "string", "required": true, "description": "Table ID or name"},
+          "fields": {"type": "array[string]", "description": "HIGHLY RECOMMENDED: Only request needed fields"},
+          "filter_by_formula": {"type": "string", "description": "Airtable formula filter"},
+          "sort": {"type": "array", "items": {"field": "string", "direction": "asc|desc"}},
+          "limit": {"type": "integer", "default": 100, "max": 1000},
+          "view": {"type": "string", "description": "View ID or name"}
+        },
+        "server_behavior": "Auto-paginate, truncate text >500 chars"
+      },
+      {
+        "name": "airtable_create_records",
+        "description": "Create new records in batch.",
+        "priority": "P0",
+        "parameters": {
+          "base_id": {"type": "string", "required": true},
+          "table_id": {"type": "string", "required": true},
+          "records": {"type": "array", "max_items": 10, "items": {"fields": "object"}},
+          "typecast": {"type": "boolean", "default": true, "description": "ALWAYS true for AI agents"}
+        }
+      },
+      {
+        "name": "airtable_update_records",
+        "description": "Update existing records (partial update).",
+        "priority": "P0",
+        "parameters": {
+          "base_id": {"type": "string", "required": true},
+          "table_id": {"type": "string", "required": true},
+          "records": {"type": "array", "max_items": 10, "items": {"id": "string", "fields": "object"}},
+          "typecast": {"type": "boolean", "default": true}
+        }
+      },
+      {
+        "name": "airtable_delete_records",
+        "description": "Delete records by ID.",
+        "priority": "P1",
+        "parameters": {
+          "base_id": {"type": "string", "required": true},
+          "table_id": {"type": "string", "required": true},
+          "record_ids": {"type": "array[string]", "max_items": 10}
+        }
+      }
+    ],
+    "advanced_tools": [
+      {
+        "name": "airtable_upsert_records",
+        "description": "Update if exists, create if not. Based on matching fields.",
+        "priority": "P2",
+        "parameters": {
+          "base_id": {"type": "string", "required": true},
+          "table_id": {"type": "string", "required": true},
+          "records": {"type": "array", "max_items": 10},
+          "merge_on": {"type": "array[string]", "description": "Field names to match for upsert"}
+        }
+      },
+      {
+        "name": "airtable_query",
+        "description": "SQL-like queries, more natural for LLMs.",
+        "priority": "P2",
+        "parameters": {
+          "base_id": {"type": "string", "required": true},
+          "table_id": {"type": "string", "required": true},
+          "query": {"type": "string", "description": "SQL-like: SELECT Name, Status FROM table WHERE Status = 'Done' LIMIT 10"}
+        },
+        "server_behavior": "Parse SQL to filterByFormula + fields params"
+      },
+      {
+        "name": "airtable_list_bases",
+        "description": "List all bases accessible to token.",
+        "priority": "P2",
+        "parameters": {}
+      }
+    ],
+    "token_saving_strategies": [
+      "Always use 'fields' parameter to request only needed fields",
+      "Cache schema server-side with 5-minute TTL",
+      "Truncate long text fields to 500 chars with '...'",
+      "Summarize attachments as '[N attachments]'",
+      "Return compact JSON without pretty-printing for large responses",
+      "Auto-paginate server-side to avoid LLM pagination loops",
+      "Default typecast=true to prevent 422 retry loops"
+    ],
+    "existing_mcp_gaps": [
+      "No schema caching (fetched every time)",
+      "No smart field selection defaults",
+      "Linked records require IDs, not names",
+      "No multi-table batch operations",
+      "Webhook management usually missing",
+      "No export to SQLite for complex queries"
+    ]
+  }
+}
