@@ -167,9 +167,10 @@ class TestFormulaBuilder:
         assert str(formula) == 'AND({Status} = "Active", {Location} != "")'
 
     def test_empty_builder(self):
-        """Test empty builder returns None."""
-        formula = FormulaBuilder().build()
-        assert formula is None
+        """Test empty builder raises error."""
+        from xwander_airtable.exceptions import FormulaError
+        with pytest.raises(FormulaError):
+            FormulaBuilder().build()
 
 
 class TestSpecialCases:
