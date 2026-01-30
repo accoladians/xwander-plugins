@@ -1,50 +1,114 @@
 # Airtable Agent
 
-Specialized agent for Airtable operations with the xwander-airtable toolkit.
+Specialized sub-agent for bulk Airtable operations. Saves orchestrator tokens
+by handling batch operations, field management, and transforms internally.
 
-## Capabilities
+## When to Delegate Here
 
-- Formula building with type-safe syntax
-- Batch operations with progress tracking
-- Schema inspection and caching
-- Calendar/event management for Xwander Nordic
+| Task | Token Savings |
+|------|---------------|
+| Batch create/update/delete (>10 records) | 80-90% |
+| Rename field values across table | 90%+ |
+| Bulk transforms (set values where, copy field) | 85% |
+| Schema inspection + multi-step operations | 70% |
+| Field option management | 60% |
 
-## Tools Available
+## Invocation
 
-- `xw airtable list-bases` - List accessible Airtable bases
-- `xw airtable schema --base BASE_ID` - Get base schema
-- `xw airtable list-records --base BASE_ID --table TABLE` - List records
-- `xw airtable batch-create --base BASE_ID --table TABLE --file FILE` - Batch create
-- `xw airtable formula --equals "Field=Value"` - Build and test formulas
+```python
+Task(subagent_type="backend-agent", prompt="""
+You are the Airtable Agent. Use the xwander-airtable Python library.
+
+TASK: Rename Track "Week Packages" to "Holiday Packages" in Events table.
+
+CONTEXT:
+- Base: app5ctfBdvOxmTpOM
+- Table: Events (tbl6W7GHp31cVnZ3u)
+- Library: /srv/plugins/xwander-airtable/
+
+APPROACH:
+1. Import: from xwander_airtable import AirtableClient
+2. Use client.transforms.rename_values() for smart rename
+3. Report result
+
+TOKEN: Set AIRTABLE_TOKEN from ~/.claude.json mcpServers.airtable.env.AIRTABLE_API_KEY
+""", description="Airtable bulk rename")
+```
 
 ## Python API
 
 ```python
+import json
+from pathlib import Path
 from xwander_airtable import AirtableClient
 from xwander_airtable.formula import F
 
-client = AirtableClient()
+# Token from MCP config
+config = json.loads(Path.home().joinpath(".claude.json").read_text())
+token = config["mcpServers"]["airtable"]["env"]["AIRTABLE_API_KEY"]
+client = AirtableClient(token=token)
 
-# Query with formula
-records = client.list_records(
-    "app5ctfBdvOxmTpOM", "Events",
-    formula=F.equals("Track", "Day Tours").and_(F.is_after_today("Start Date"))
-)
+# === Field Option Management ===
+# Rename select option (1 API call, affects ALL records)
+client.fields.rename_option("app123", "Events", "Track",
+    "Week Packages", "Holiday Packages")
 
-# Batch create
-result = client.batch_create("app5ctfBdvOxmTpOM", "Events", records, progress=True)
+# Add new option
+client.fields.add_option("app123", "Events", "Track",
+    "New Track", color="cyanLight2")
+
+# Delete option
+client.fields.delete_option("app123", "Events", "Track", "Old Track")
+
+# === Smart Transforms ===
+# Auto-detects: select field → rename option, text field → batch update
+result = client.transforms.rename_values("app123", "Events", "Track",
+    "Week Packages", "Holiday Packages")
+
+# Set value on all records matching formula
+result = client.transforms.set_values_where("app123", "Events",
+    field="Status", value="Done",
+    formula=F.equals("Track", "Academy"))
+
+# Copy field values
+result = client.transforms.copy_field("app123", "Events",
+    from_field="Name", to_field="Display Name")
+
+# Clear field values by formula
+result = client.transforms.clear_field_where("app123", "Events",
+    field="Notes", formula=F.is_before("End Date", "2026-01-01"))
+
+# === Batch Operations ===
+# Create (auto-chunks to 10/request)
+result = client.batch_create("app123", "Events", records, progress=True)
+
+# Update
+updates = [{"id": "recXXX", "fields": {"Status": "Done"}}]
+result = client.batch_update("app123", "Events", updates, progress=True)
+
+# Delete
+result = client.batch_delete("app123", "Events", ["rec1", "rec2"], progress=True)
+
+# Upsert (update or create by key)
+result = client.batch_upsert("app123", "Events", records,
+    merge_on=["Name"], progress=True)
 ```
 
-## When to Use
+## Xwander Nordic Calendar
 
-Use this agent when:
-- Creating/updating multiple Airtable records
-- Building complex filterByFormula queries
-- Syncing data with Airtable
-- Managing calendar events in Airtable
+| Key | Value |
+|-----|-------|
+| Base ID | app5ctfBdvOxmTpOM |
+| Events Table | tbl6W7GHp31cVnZ3u |
+| Packages Table | tbl2NtM9i85lcqeqE |
+| Tracks | Erasmus+, Academy, Day Tours, Holiday Packages, Cap of the North |
 
-## Context: Xwander Nordic Calendar
+## Error Handling
 
-- **Base ID:** app5ctfBdvOxmTpOM
-- **Events Table:** tbl6W7GHp31cVnZ3u
-- **Tracks:** Erasmus+, Academy, Day Tours, Week Packages, Cap of the North
+| Error | Exit Code | Action |
+|-------|-----------|--------|
+| Rate limit (429) | 2 | Auto-retry via rate limiter |
+| Auth failed (401) | 3 | Check token |
+| Not found (404) | 4 | Verify IDs |
+| Validation (422) | 5 | Check types, use typecast=True |
+| Batch partial fail | 6 | Report successes + errors |

@@ -46,6 +46,8 @@ from .exceptions import (
     NotFoundError,
     raise_for_status,
 )
+from .field_ops import FieldOperations
+from .transforms import Transforms
 
 
 class SchemaCache:
@@ -92,6 +94,8 @@ class AirtableClient:
     - Batch operations for create/update/delete
     - Formula builder integration
     - Proper error handling with typed exceptions
+    - Field option management (add/rename/delete select options)
+    - Bulk transforms (rename values, set by formula, copy fields)
     """
 
     BASE_URL = "https://api.airtable.com"
@@ -126,6 +130,23 @@ class AirtableClient:
             headers=self._build_headers(),
             timeout=timeout,
         )
+        # Lazy-initialized sub-modules
+        self._field_ops: Optional[FieldOperations] = None
+        self._transforms: Optional[Transforms] = None
+
+    @property
+    def fields(self) -> FieldOperations:
+        """Field operations (add/rename/delete select options)."""
+        if self._field_ops is None:
+            self._field_ops = FieldOperations(self)
+        return self._field_ops
+
+    @property
+    def transforms(self) -> Transforms:
+        """Bulk transform operations."""
+        if self._transforms is None:
+            self._transforms = Transforms(self)
+        return self._transforms
 
     def _build_headers(self) -> Dict[str, str]:
         """Build request headers."""
@@ -325,7 +346,7 @@ class AirtableClient:
         base_id: str,
         table: str,
         fields: Dict[str, Any],
-        typecast: bool = False,
+        typecast: bool = True,
     ) -> Dict[str, Any]:
         """Create a single record.
 
@@ -350,7 +371,7 @@ class AirtableClient:
         table: str,
         record_id: str,
         fields: Dict[str, Any],
-        typecast: bool = False,
+        typecast: bool = True,
     ) -> Dict[str, Any]:
         """Update a single record (partial update).
 
