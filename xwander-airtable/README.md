@@ -13,6 +13,9 @@ The Airtable MCP server is functional but has gaps that cause token waste and su
 | **Formula Building** | Manual string concat | Type-safe builder |
 | **Schema Caching** | Fetched every call | 5-min TTL cache |
 | **Progress Feedback** | None | Built-in callbacks |
+| **Field Option Mgmt** | Not supported | Add/rename/delete/reorder |
+| **Bulk Transforms** | Not available | Smart rename, set_where, copy |
+| **typecast Default** | Must specify | True by default (LLM-friendly) |
 
 ## Installation
 
@@ -136,6 +139,38 @@ result = client.batch_upsert(
 )
 ```
 
+## Field Option Management (v1.1.0)
+
+```python
+# Rename a select option (affects all records)
+client.fields.rename_option("app123", "Events", "Track",
+    "Week Packages", "Holiday Packages")
+
+# Add new option
+client.fields.add_option("app123", "Events", "Track", "New", color="cyanLight2")
+
+# Delete option
+client.fields.delete_option("app123", "Events", "Track", "Old")
+```
+
+## Bulk Transforms (v1.1.0)
+
+```python
+# Smart rename: select → field-level, text → batch update
+result = client.transforms.rename_values("app123", "Events", "Track",
+    "Week Packages", "Holiday Packages")
+
+# Set field on all records matching formula
+result = client.transforms.set_values_where("app123", "Events",
+    field="Status", value="Done",
+    formula=F.equals("Track", "Academy"))
+
+# Copy field values with optional transform
+result = client.transforms.copy_field("app123", "Events",
+    from_field="Name", to_field="Display Name",
+    transform_fn=str.upper)
+```
+
 ## Error Handling
 
 Typed exceptions for specific error conditions:
@@ -164,7 +199,7 @@ except ValidationError as e:
 - **Base ID:** `app5ctfBdvOxmTpOM`
 - **Events Table:** `tbl6W7GHp31cVnZ3u`
 - **Packages Table:** `tbl2NtM9i85lcqeqE`
-- **Tracks:** Erasmus+, Academy, Day Tours, Week Packages, Cap of the North
+- **Tracks:** Erasmus+, Academy, Day Tours, Holiday Packages, Cap of the North
 
 ## Architecture
 
@@ -178,13 +213,22 @@ xwander-airtable/
 │   ├── formula.py        # Type-safe formula builder
 │   ├── batch.py          # Batch operations
 │   ├── rate_limiter.py   # Token bucket rate limiter
+│   ├── field_ops.py      # Field option management (v1.1.0)
+│   ├── transforms.py     # Bulk transforms (v1.1.0)
 │   ├── exceptions.py     # Typed exceptions
 │   └── cli.py            # CLI commands
 ├── skills/
 │   └── airtable-ops/
 │       └── SKILL.md      # Claude Code skill definition
+├── agents/
+│   └── airtable-agent/
+│       └── AGENT.md      # Sub-agent for bulk ops
+├── docs/
+│   └── airtable-api-spec.json  # API reference
 ├── tests/
-│   └── test_formula.py   # Unit tests
+│   ├── test_formula.py        # 28 formula tests
+│   ├── test_field_ops.py      # 15 field ops tests
+│   └── test_transforms.py    # 13 transform tests
 ├── setup.py              # Package installation
 └── README.md             # This file
 ```

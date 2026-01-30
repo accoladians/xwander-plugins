@@ -18,8 +18,9 @@ Built: 2026-01-10 | Status: Production Ready
 | [xwander-ga4](xwander-ga4/) | 1.0.0 | Analytics 4 API | 2,885 | Ready |
 | [xwander-cli](xwander-cli/) | 1.0.0 | Unified CLI | 300 | Ready |
 | [xwander-gsheet](xwander-gsheet/) | 2.0.0 | Google Sheets | - | Existing |
+| [xwander-airtable](xwander-airtable/) | 1.1.0 | Airtable API + MCP complement | 4,100 | Ready |
 
-**Total:** 13,020+ LOC across 5 new plugins
+**Total:** 17,100+ LOC across 6 new plugins
 
 ---
 
