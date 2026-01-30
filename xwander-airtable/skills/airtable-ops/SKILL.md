@@ -1,7 +1,7 @@
 ---
 name: airtable-ops
 description: Activate when user needs Airtable operations - record management, batch operations, formula building, or schema inspection. Provides AI-optimized Airtable workflows.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Airtable Operations Skill
@@ -29,6 +29,9 @@ Activate this skill when user:
 | Schema lookup | Fetched every call | Cached (5 min TTL) |
 | Rate limiting | Not handled | Automatic (5 req/sec) |
 | Progress feedback | None | Built-in callbacks |
+| Rename select options | Not supported | `client.fields.rename_option()` |
+| Bulk field transforms | Manual loop | `client.transforms.rename_values()` |
+| typecast on writes | Must specify | Default True (LLM-friendly) |
 
 ## Formula Builder
 
@@ -117,6 +120,48 @@ formula = (
     .not_empty("Location")
     .build()
 )
+```
+
+## Field Option Management (v1.1.0)
+
+```python
+# Rename a select option (affects all records instantly)
+client.fields.rename_option("app123", "Events", "Track",
+    "Week Packages", "Holiday Packages")
+
+# Add a new option
+client.fields.add_option("app123", "Events", "Track",
+    "New Track", color="cyanLight2")
+
+# Delete an option (clears field on affected records)
+client.fields.delete_option("app123", "Events", "Track", "Old Track")
+
+# Reorder options
+client.fields.reorder_options("app123", "Events", "Track",
+    ["Erasmus+", "Academy", "Day Tours", "Holiday Packages", "Cap of the North"])
+```
+
+## Bulk Transforms (v1.1.0)
+
+```python
+# Smart rename: auto-detects select (field-level) vs text (batch update)
+result = client.transforms.rename_values("app123", "Events", "Track",
+    "Week Packages", "Holiday Packages")
+# → TransformResult(method=field_rename, affected=78) or batch fallback
+
+# Set field on all matching records
+result = client.transforms.set_values_where("app123", "Events",
+    field="Status", value="Done",
+    formula=F.equals("Track", "Academy"))
+
+# Copy field values (with optional transform)
+result = client.transforms.copy_field("app123", "Events",
+    from_field="Name", to_field="Display Name",
+    transform_fn=str.upper)
+
+# Clear field by formula
+result = client.transforms.clear_field_where("app123", "Events",
+    field="Notes", formula=F.is_before("End Date", "2026-01-01"))
 ```
 
 ## Batch Operations
@@ -330,7 +375,7 @@ except AirtableError as e:
 - Erasmus+
 - Academy
 - Day Tours
-- Week Packages
+- Holiday Packages
 - Cap of the North
 
 ## Related Skills
