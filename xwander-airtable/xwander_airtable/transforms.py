@@ -27,7 +27,7 @@ from typing import Dict, Any, List, Optional, Union, Callable
 from .formula import Formula, F
 from .batch import BatchResult
 from .field_ops import FieldOperations, SELECT_TYPES
-from .exceptions import ValidationError
+from .exceptions import AirtableError, ValidationError
 
 
 class TransformResult:
@@ -101,26 +101,32 @@ class Transforms:
         field_info = self.field_ops.get_field_info(base_id, table, field_name)
 
         if field_info["type"] in SELECT_TYPES:
-            # Field-level rename (instant, affects all records)
-            self.field_ops.rename_option(
-                base_id, table, field_name, old_value, new_value
-            )
-            # Count affected records
-            records = self.client.list_records(
-                base_id, table,
-                formula=F.equals(field_name, new_value),
-                fields=[field_name],
-            )
-            return TransformResult(
-                method="field_rename",
-                records_affected=len(records),
-                field_updated=True,
-            )
-        else:
-            # Record-level update (batch)
-            return self._batch_rename(
-                base_id, table, field_name, old_value, new_value, progress
-            )
+            # Try field-level rename first (instant, 1 API call)
+            try:
+                self.field_ops.rename_option(
+                    base_id, table, field_name, old_value, new_value
+                )
+                # Count affected records
+                records = self.client.list_records(
+                    base_id, table,
+                    formula=F.equals(field_name, new_value),
+                    fields=[field_name],
+                )
+                return TransformResult(
+                    method="field_rename",
+                    records_affected=len(records),
+                    field_updated=True,
+                )
+            except AirtableError:
+                # Field-level rename failed (token scope limitation).
+                # Fall back to record-level batch update with typecast=True
+                # which lets Airtable auto-create new select options.
+                pass
+
+        # Record-level update (batch) - works for all field types
+        return self._batch_rename(
+            base_id, table, field_name, old_value, new_value, progress
+        )
 
     def _batch_rename(
         self,
